@@ -439,6 +439,8 @@ header.main .hbox {
   color: #ddd;
 }
 .detail-info .meta span.rate { color: #ffd700; font-weight: 700; }
+.detail-info .meta span a { color: #7ec2ff; }
+.detail-info .meta span a:hover { text-decoration: underline; color: var(--primary); }
 .detail-info .synopsis { color: #d3d3d3; font-size: 14.5px; line-height: 1.65; }
 .detail-info .genres { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 .detail-info .genres a {

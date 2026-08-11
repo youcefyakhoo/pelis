@@ -35,6 +35,18 @@ async function loadData() {
 const allItems = () => [...CATALOG.movies, ...CATALOG.series];
 const genreName = (id) => CATALOG.genres[id] || "";
 const countryName = (id) => CATALOG.countries[id] || "";
+const genreSlug = (id) => {
+  const g = (CATALOG.genresList || []).find((x) => String(x.id) === String(id));
+  return g ? g.slug : null;
+};
+const countrySlug = (id) => {
+  const c = (CATALOG.countriesList || []).find((x) => String(x.id) === String(id));
+  return c ? c.slug : null;
+};
+const countrySlugByName = (name) => {
+  const c = (CATALOG.countriesList || []).find((x) => x.name.toLowerCase() === String(name || "").toLowerCase());
+  return c ? c.slug : null;
+};
 
 function findBySlug(type, slug) {
   const list = type === "movie" ? CATALOG.movies : CATALOG.series;
@@ -327,26 +339,28 @@ function renderTagByName(slug, pageStr) {
 
 function renderGenre(slug, pageStr) {
   const page = parseInt(pageStr, 10) || 1;
-  const target = (CATALOG.genresList || []).find((g) => g.slug === slug || String(g.id) === slug || genreName(g.id).toLowerCase() === slug);
-  const gid = target ? target.id : Object.keys(CATALOG.genres).find((id) => genreName(id).toLowerCase() === slug);
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const target = (CATALOG.genresList || []).find((g) => g.slug === slug || String(g.id) === slug || norm(g.name) === norm(slug));
+  const gid = target ? target.id : Object.keys(CATALOG.genres).find((id) => norm(genreName(id)) === norm(slug));
   const name = target ? target.name : (gid ? genreName(gid) : slug);
   const items = allItems().filter((x) => (x.genres || []).includes(gid ? Number(gid) : -1));
   root.innerHTML = `
     <h1 class="page-title">Género: ${esc(name)}</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, `#/genero/${slug}`)}`;
+    ${paginatedList(items, page, `#/genero/${gid ? genreSlug(gid) : slug}`)}`;
 }
 
 function renderCountry(slug, pageStr) {
   const page = parseInt(pageStr, 10) || 1;
-  const target = (CATALOG.countriesList || []).find((c) => c.slug === slug || String(c.id) === slug || countryName(c.id).toLowerCase() === slug);
-  const cid = target ? target.id : Object.keys(CATALOG.countries).find((id) => countryName(id).toLowerCase() === slug);
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const target = (CATALOG.countriesList || []).find((c) => c.slug === slug || String(c.id) === slug || norm(c.name) === norm(slug));
+  const cid = target ? target.id : Object.keys(CATALOG.countries).find((id) => norm(countryName(id)) === norm(slug));
   const name = target ? target.name : (cid ? countryName(cid) : slug);
   const items = allItems().filter((x) => (x.countries || []).includes(cid ? Number(cid) : -1));
   root.innerHTML = `
     <h1 class="page-title">País: ${esc(name)}</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, `#/pais/${slug}`)}`;
+    ${paginatedList(items, page, `#/pais/${cid ? countrySlug(cid) : slug}`)}`;
 }
 
 // ------------- Detail -------------
@@ -355,15 +369,15 @@ function renderDetail(type, slug) {
   if (!item) { root.innerHTML = `<div class="empty">No se encontró el título.</div>`; return; }
 
   const genres = (item.genres || [])
-    .map((g) => genreName(g))
-    .filter(Boolean)
-    .map((g) => `<a href="#/genero/${encodeURIComponent(g.toLowerCase())}">${esc(g)}</a>`)
+    .map((gid) => ({ name: genreName(gid), slug: genreSlug(gid) }))
+    .filter((g) => g.name)
+    .map((g) => `<a href="#/genero/${encodeURIComponent(g.slug || g.name)}">${esc(g.name)}</a>`)
     .join("");
 
   const metaSpans = `
     ${item.year ? `<span>${esc(item.year)}</span>` : ""}
     ${item.runtime ? `<span>${esc(item.runtime)} min</span>` : ""}
-    ${item.country ? `<span>${esc(item.country)}</span>` : ""}
+    ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="#/pais/${encodeURIComponent(cs)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
     ${item.rating ? `<span class="rate">★ ${item.rating.toFixed(1)}</span>` : ""}
     ${item.seasons ? `<span>${esc(item.seasons)} temporada${item.seasons > 1 ? "s" : ""}</span>` : ""}
     ${item.episodesCount ? `<span>${esc(item.episodesCount)} episodios</span>` : ""}
