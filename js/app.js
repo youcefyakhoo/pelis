@@ -221,15 +221,15 @@ async function route() {
 
   switch (parts[0]) {
     case "home": return renderHome();
-    case "peliculas": return renderListing("Películas", CATALOG.movies, parts[1], "#/peliculas");
+    case "peliculas": return renderMovies(parts[1], parts[2]);
     case "series": return renderListing("Series", CATALOG.series, parts[1], "#/series");
     case "episodios": return renderEpisodesPage(parts[1]);
     case "tendencias": return renderTendencias(parts[1]);
     case "imdb": return renderIMDb(parts[1]);
     case "animes": return renderTag("anime", parts[1]);
     case "tag": return parts[1] ? renderTagByName(parts[1], parts[2]) : renderHome();
-    case "genero": return parts[1] ? renderGenre(parts[1], parts[2]) : renderHome();
-    case "pais": return parts[1] ? renderCountry(parts[1], parts[2]) : renderHome();
+    case "genero": return parts[1] ? renderGenre(parts[1], parts[2], parts[3]) : renderHome();
+    case "pais": return parts[1] ? renderCountry(parts[1], parts[2], parts[3]) : renderHome();
     case "detalle": return parts[1] && parts[2] ? renderDetail(parts[1], parts[2]) : renderHome();
     default: return renderHome();
   }
@@ -287,6 +287,41 @@ function renderListing(title, items, pageStr, base) {
     ${paginatedList(sorted, page, base)}`;
 }
 
+// Alphabet index (A-Z) used by the movies listing, like the original site.
+const LETTERS = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function alphaIndex(currentLetter) {
+  const norm = (s) => String(s || "").toUpperCase();
+  const items = [];
+  for (const ch of LETTERS) {
+    const letter = ch === "#" ? "#" : ch;
+    const active = currentLetter === letter;
+    items.push(active
+      ? `<li class="active"><span>${letter}</span></li>`
+      : `<li><a href="#/peliculas/${letter === "#" ? "#" : letter}">${letter}</a></li>`);
+  }
+  return `<ul class="glossary">${items.join("")}</ul>`;
+}
+
+function firstLetter(item) {
+  const t = String(item.title || "").trim();
+  const ch = t.charAt(0).toUpperCase();
+  return /[A-Z]/.test(ch) ? ch : "#";
+}
+
+// Movies page: alphabetical glossary + paged grid, one letter at a time.
+function renderMovies(letter, pageStr) {
+  const key = letter !== undefined ? String(letter).toUpperCase() : null;
+  const page = parseInt(pageStr, 10) || 1;
+  const all = [...CATALOG.movies].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "es"));
+  const lettered = key ? all.filter((x) => firstLetter(x) === key) : all;
+  const paged = paginatedList(lettered, page, `#/peliculas/${key ? (key === "#" ? "#" : key) : "#"}`);
+  root.innerHTML = `
+    <h1 class="page-title">Películas</h1>
+    <p class="count-results">${lettered.length} títulos${key ? ` · letra ${esc(key)}` : ""}</p>
+    ${alphaIndex(key)}
+    ${paged}`;
+}
+
 function renderTendencias(pageStr) {
   const page = parseInt(pageStr, 10) || 1;
   const items = allItems().filter((x) => x.rating > 0).sort((a, b) => b.rating - a.rating);
@@ -337,30 +372,49 @@ function renderTagByName(slug, pageStr) {
     ${paginatedList(items, page, `#/tag/${slug}`)}`;
 }
 
-function renderGenre(slug, pageStr) {
-  const page = parseInt(pageStr, 10) || 1;
+// Type-filter tabs used by genre/country pages (like the original site).
+function typeFilterTabs(base, type) {
+  const t = (label, val) => `<a class="${(!val && !type) || type === val ? "selected" : ""}" href="${base}${val ? `/${val}` : ""}">${esc(label)}</a>`;
+  return `<nav class="releases">${t("Añadido recientemente", "")}${t("Películas", "movies")}${t("Series", "tv")}</nav>`;
+}
+
+function renderGenre(slug, seg2, seg3) {
+  // seg2 = "movies"|"tv"|<page number>|undefined ; seg3 = page (when seg2 is a type)
+  const type = seg2 === "movies" || seg2 === "tv" ? seg2 : null;
+  const page = parseInt(type ? seg3 : seg2, 10) || 1;
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const target = (CATALOG.genresList || []).find((g) => g.slug === slug || String(g.id) === slug || norm(g.name) === norm(slug));
   const gid = target ? target.id : Object.keys(CATALOG.genres).find((id) => norm(genreName(id)) === norm(slug));
   const name = target ? target.name : (gid ? genreName(gid) : slug);
-  const items = allItems().filter((x) => (x.genres || []).includes(gid ? Number(gid) : -1));
+  const base = gid ? `#/genero/${genreSlug(gid)}` : `#/genero/${slug}`;
+  const pool = type === "movies" ? CATALOG.movies : type === "tv" ? CATALOG.series : allItems();
+  const items = pool
+    .filter((x) => (x.genres || []).includes(gid ? Number(gid) : -1))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   root.innerHTML = `
     <h1 class="page-title">Género: ${esc(name)}</h1>
+    ${typeFilterTabs(base, type)}
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, `#/genero/${gid ? genreSlug(gid) : slug}`)}`;
+    ${paginatedList(items, page, `${base}${type ? `/${type}` : ""}`)}`;
 }
 
-function renderCountry(slug, pageStr) {
-  const page = parseInt(pageStr, 10) || 1;
+function renderCountry(slug, seg2, seg3) {
+  const type = seg2 === "movies" || seg2 === "tv" ? seg2 : null;
+  const page = parseInt(type ? seg3 : seg2, 10) || 1;
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const target = (CATALOG.countriesList || []).find((c) => c.slug === slug || String(c.id) === slug || norm(c.name) === norm(slug));
   const cid = target ? target.id : Object.keys(CATALOG.countries).find((id) => norm(countryName(id)) === norm(slug));
   const name = target ? target.name : (cid ? countryName(cid) : slug);
-  const items = allItems().filter((x) => (x.countries || []).includes(cid ? Number(cid) : -1));
+  const base = cid ? `#/pais/${countrySlug(cid)}` : `#/pais/${slug}`;
+  const pool = type === "movies" ? CATALOG.movies : type === "tv" ? CATALOG.series : allItems();
+  const items = pool
+    .filter((x) => (x.countries || []).includes(cid ? Number(cid) : -1))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   root.innerHTML = `
     <h1 class="page-title">País: ${esc(name)}</h1>
+    ${typeFilterTabs(base, type)}
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, `#/pais/${cid ? countrySlug(cid) : slug}`)}`;
+    ${paginatedList(items, page, `${base}${type ? `/${type}` : ""}`)}`;
 }
 
 // ------------- Detail -------------
@@ -378,10 +432,18 @@ function renderDetail(type, slug) {
     ${item.year ? `<span>${esc(item.year)}</span>` : ""}
     ${item.runtime ? `<span>${esc(item.runtime)} min</span>` : ""}
     ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="#/pais/${encodeURIComponent(cs)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
-    ${item.rating ? `<span class="rate">★ ${item.rating.toFixed(1)}</span>` : ""}
+    ${item.rated ? `<span>${esc(item.rated)}</span>` : ""}
+    ${item.rating ? `<span class="rate">★ IMDb ${item.rating.toFixed(1)}</span>` : ""}
+    ${item.tmdbRating ? `<span class="rate">★ TMDb ${item.tmdbRating.toFixed(1)}</span>` : ""}
     ${item.seasons ? `<span>${esc(item.seasons)} temporada${item.seasons > 1 ? "s" : ""}</span>` : ""}
     ${item.episodesCount ? `<span>${esc(item.episodesCount)} episodios</span>` : ""}
   `;
+
+  const ratingsBlock = (item.rating || item.tmdbRating) ? `
+    <div class="ratings">
+      ${item.rating ? `<div class="rating-box"><span class="rb-val">★ ${item.rating.toFixed(1)}</span><span class="rb-label">IMDb</span>${item.imdbVotes ? `<span class="rb-votes">${esc(Number(item.imdbVotes).toLocaleString("es"))} votos</span>` : ""}</div>` : ""}
+      ${item.tmdbRating ? `<div class="rating-box"><span class="rb-val">★ ${item.tmdbRating.toFixed(1)}</span><span class="rb-label">TMDb</span>${item.tmdbVotes ? `<span class="rb-votes">${esc(Number(item.tmdbVotes).toLocaleString("es"))} votos</span>` : ""}</div>` : ""}
+    </div>` : "";
 
   const embedUrl = item.type === "movie"
     ? `https://playpaste.link/player/embed.php?id=${encodeURIComponent(item.embeddedId)}`
@@ -395,6 +457,25 @@ function renderDetail(type, slug) {
     ? renderEpisodes(item)
     : "";
 
+  const directorBlock = (item.director && item.director.length)
+    ? peopleBlock(item.type === "series" ? "Creador" : "Director", item.director, false)
+    : (item.creator && item.creator.length ? peopleBlock("Creador", item.creator, false) : "");
+
+  const castBlock = (item.cast && item.cast.length) ? peopleBlock("Reparto", item.cast, true) : "";
+
+  const keywordsBlock = (item.keywords && item.keywords.length)
+    ? `<div class="keywords"><span class="kw-label">Etiquetas:</span>${item.keywords.slice(0, 10).map((k) => `<span class="kw">${esc(k)}</span>`).join("")}</div>`
+    : "";
+
+  // The original shows a "Sinopsis" block whose body is the description, or the
+  // keywords when there is no description (some titles have no synopsis at all).
+  const synopsisText = (item.synopsis || "").trim();
+  const synopsisBlock = synopsisText
+    ? `<p class="synopsis">${esc(synopsisText)}</p>`
+    : "";
+
+  const relatedBlock = renderRelated(item);
+
   root.innerHTML = `
     <a class="back" href="javascript:history.back()">&larr; Volver</a>
     <section class="module">
@@ -406,13 +487,19 @@ function renderDetail(type, slug) {
           <h1>${esc(item.title)}</h1>
           ${item.originalTitle && item.originalTitle !== item.title ? `<p class="original">${esc(item.originalTitle)}</p>` : ""}
           <div class="meta">${metaSpans}</div>
-          <p class="synopsis">${esc(item.synopsis || "Sin sinopsis disponible.")}</p>
+          ${ratingsBlock}
+          ${synopsisBlock}
+          ${keywordsBlock}
           ${genres ? `<div class="genres">${genres}</div>` : ""}
           ${playBtn}
         </div>
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
+      ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
       ${episodeSection}
+      ${directorBlock}
+      ${castBlock}
+      ${relatedBlock}
     </section>`;
 
   const btn = root.querySelector(".play-btn");
@@ -424,6 +511,37 @@ function renderDetail(type, slug) {
       wrap.innerHTML = `<iframe src="${btn.dataset.src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
     });
   }
+  bindSeasonAccordion();
+}
+
+// Person/people block (Director, Creador, Reparto)
+function peopleBlock(title, people, showRoles) {
+  const chips = people.map((p) => `
+    <div class="person">
+      ${p.photo && !p.photo.endsWith("/null") ? `<img src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'"/>` : `<div class="person-avatar">${esc((p.name || "?").charAt(0))}</div>`}
+      <div class="person-meta">
+        <span class="person-name">${esc(p.name)}</span>
+        ${showRoles && p.role ? `<span class="person-role">${esc(p.role)}</span>` : ""}
+      </div>
+    </div>`).join("");
+  return `<section class="people-section"><h2 class="sec-title">${esc(title)}</h2><div class="people">${chips}</div></section>`;
+}
+
+// "Títulos similares" - items sharing the most genres
+function renderRelated(item) {
+  const myGenres = item.genres || [];
+  const scored = allItems()
+    .filter((x) => x.slug !== item.slug)
+    .map((x) => {
+      const overlap = (x.genres || []).filter((g) => myGenres.includes(g)).length;
+      return { x, overlap };
+    })
+    .filter((o) => o.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap || (b.x.rating || 0) - (a.x.rating || 0))
+    .slice(0, 12)
+    .map((o) => o.x);
+  if (!scored.length) return "";
+  return `<section class="module related-module"><div class="content"><header><h2><span class="fas fa-clapperboard"></span> Títulos similares</h2></header><div class="items">${scored.map(card).join("")}</div></div></section>`;
 }
 
 function renderEpisodes(show) {
@@ -434,31 +552,60 @@ function renderEpisodes(show) {
     (bySeason[s] = bySeason[s] || []).push(ep);
   }
   const seasons = Object.keys(bySeason).map(Number).sort((a, b) => a - b);
-  return seasons.map((s) => {
-    const eps = bySeason[s].map((ep) => `
-      <li>
-        <a href="javascript:void(0)" data-src="${esc(ep.embedded)}" data-name="${esc(show.title)} - T${ep.season} E${ep.episode}">
-          <span>${esc(ep.title || `Episodio ${ep.episode}`)}</span>
-          <span class="num">T${ep.season} E${ep.episode}</span>
-        </a>
-      </li>`).join("");
-    return `
-    <div class="seasons">
-      <h3 class="se-title">Temporada ${s}</h3>
-      <ul class="episodes-list">${eps}</ul>
+  return `
+    <div class="seasons-block">
+      <h2 class="sec-title">Temporadas y episodios</h2>
+      <div class="seasons">
+        ${seasons.map((s, i) => {
+          const eps = bySeason[s].map((ep) => `
+            <li>
+              <a href="javascript:void(0)" data-src="${esc(ep.embedded)}" data-name="${esc(show.title)} - T${ep.season} E${ep.episode}">
+                <span class="num">T${ep.season} E${ep.episode}</span>
+                <span class="episode-title">${esc(ep.title || `Episodio ${ep.episode}`)}</span>
+                ${ep.date ? `<span class="ep-date">${esc(ep.date)}</span>` : ""}
+              </a>
+            </li>`).join("");
+          // first season open by default (like the original shows most recent open)
+          const open = i === 0;
+          return `
+          <div class="se-c">
+            <div class="se-q ${open ? "open" : ""}">
+              <span class="se-t">${s}</span>
+              <span class="se-title">Temporada ${s}</span>
+              <span class="se-o"></span>
+            </div>
+            <ul class="episodes-list" ${open ? "" : 'style="display:none;"'}>${eps}</ul>
+          </div>`;
+        }).join("")}
+      </div>
     </div>`;
-  }).join("");
+}
+
+// accordion: click a season header to expand/collapse its episodes
+function bindSeasonAccordion() {
+  root.querySelectorAll(".se-q").forEach((q) => {
+    q.addEventListener("click", () => {
+      const list = q.nextElementSibling;
+      const open = q.classList.toggle("open");
+      if (list) list.style.display = open ? "" : "none";
+    });
+  });
 }
 
 function openPlayer(src, name) {
-  // ensure a live #show-player inside the current #main-content
+  // Use the dedicated slot (already rendered after the detail header for series).
+  // Never jump to the top of the page.
   let wrap = document.getElementById("show-player");
   if (!wrap) {
+    // fallback: create the slot right after the detail header, not at page top
+    const head = root.querySelector(".detail-head");
     wrap = document.createElement("div");
     wrap.className = "player-wrap active";
     wrap.id = "show-player";
-    root.prepend(wrap);
+    if (head && head.parentElement) head.after(wrap);
+    else root.insertBefore(wrap, root.firstChild);
   }
+  wrap.classList.add("active");
   wrap.innerHTML = `<iframe src="${src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
   if (name) wrap.setAttribute("data-name", name);
   wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -472,7 +619,10 @@ root.addEventListener("click", (e) => {
   if (epCard) { openPlayer(epCard.dataset.src, epCard.dataset.name); return; }
 });
 
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => {
+  window.scrollTo(0, 0);
+  route();
+});
 window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
@@ -485,18 +635,31 @@ async function init() {
 }
 
 // ------------- Header menus -------------
+// Nombres de países que muestra el menú del original (43). Los otros del catálogo quedan
+// accesibles solo por URL (#/pais/<slug>), igual que en el original.
+const HEADER_COUNTRIES = [
+  "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Bulgaria", "Canada", "Chile", "China",
+  "Colombia", "Costa Rica", "Denmark", "Dominican Republic", "Ecuador", "Finland", "France", "Germany",
+  "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Ireland", "Italy", "Japan", "Luxembourg",
+  "Mexico", "Netherlands", "New Zealand", "Norway", "Panama", "Peru", "Philippines", "Poland", "Portugal",
+  "Puerto Rico", "South Africa", "South Korea", "Spain", "United Kingdom", "United States", "Uruguay", "Venezuela"
+];
+const HEADER_COUNTRY_ALIASES = { "United States of America": "United States" };
 function buildHeaderMenus() {
   const gMenu = document.getElementById("genres-menu");
   const cMenu = document.getElementById("countries-menu");
   if (gMenu) {
     gMenu.innerHTML = (CATALOG.genresList || [])
-      .filter((g) => g.name && !g.name.includes("&amp;"))
       .map((g) => `<li><a href="#/genero/${encodeURIComponent(g.slug)}">${esc(g.name)}</a></li>`)
       .join("");
   }
   if (cMenu) {
-    cMenu.innerHTML = (CATALOG.countriesList || [])
-      .map((c) => `<li><a href="#/pais/${encodeURIComponent(c.slug)}">${esc(c.name)}</a></li>`)
+    const byName = {};
+    (CATALOG.countriesList || []).forEach((c) => { byName[c.name] = c; byName[HEADER_COUNTRY_ALIASES[c.name] || c.name] = c; });
+    cMenu.innerHTML = HEADER_COUNTRIES
+      .map((name) => byName[name])
+      .filter(Boolean)
+      .map((c) => `<li><a href="#/pais/${encodeURIComponent(c.slug)}">${esc(HEADER_COUNTRY_ALIASES[c.name] || c.name)}</a></li>`)
       .join("");
   }
 }
@@ -529,7 +692,12 @@ function initSearch() {
   };
 
   if (form) form.addEventListener("submit", (e) => { e.preventDefault(); doSearch(s.value); });
-  if (formMob) formMob.addEventListener("submit", (e) => { e.preventDefault(); doSearch(document.getElementById("s-mob").value); if (header.classList.contains("open")) toggleMenu(); });
+  if (formMob) formMob.addEventListener("submit", (e) => {
+    e.preventDefault();
+    doSearch(document.getElementById("s-mob").value);
+    const nav = document.querySelector(".head-main-nav");
+    if (nav && nav.classList.contains("open")) toggleMenu();
+  });
 
   // desktop + mobile search buttons
   const resp = document.getElementById("search-resp");
@@ -554,6 +722,20 @@ function initMobile() {
   const bars = document.getElementById("mob-bars");
   const nav = document.querySelector(".head-main-nav");
   if (bars && nav) bars.addEventListener("click", () => toggleMenu());
+
+  if (nav) nav.addEventListener("click", (e) => {
+    if (window.innerWidth > 920) return;
+    const li = e.target.closest("li.has-sub");
+    const toggle = e.target.closest("li.has-sub > a");
+    const link = e.target.closest("a");
+    if (toggle && toggle.getAttribute("href") === "javascript:void(0)") {
+      e.preventDefault();
+      li.classList.toggle("open");
+      return;
+    }
+    if (link) toggleMenu();
+  });
+
   // close menu when clicking a nav link
   window.addEventListener("click", (e) => {
     if (nav && nav.classList.contains("open") && !e.target.closest("header.main")) toggleMenu();

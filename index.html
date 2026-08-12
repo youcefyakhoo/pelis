@@ -24,20 +24,24 @@
       <div class="head-main-nav">
         <ul class="main-header">
           <li class="search-mob"><form id="searchform-mob"><input type="text" id="s-mob" placeholder="Buscar..." /><button type="submit" class="search-button"><span class="fas fa-search"></span></button></form></li>
-          <li><a href="#/tendencias"><span class="fas fa-fire"></span> Tendencias</a></li>
+          <li><a href="#/tendencias">Tendencias</a></li>
           <li><a href="#/peliculas" data-route="peliculas">Películas</a></li>
-          <li><a href="#/series" data-route="series">Series</a></li>
+          <li class="has-sub">
+            <a href="#/series" data-route="series">Series <span class="caret">&#9662;</span></a>
+            <ul class="sub-menu">
+              <li><a href="#/series">Temporadas</a></li>
+            </ul>
+          </li>
+          <li><a href="#/animes">Animes</a></li>
           <li class="has-sub">
             <a href="javascript:void(0)">Géneros <span class="caret">&#9662;</span></a>
             <ul class="sub-menu" id="genres-menu"></ul>
           </li>
           <li class="has-sub">
-            <a href="javascript:void(0)">Países <span class="caret">&#9662;</span></a>
+            <a href="javascript:void(0)">País <span class="caret">&#9662;</span></a>
             <ul class="sub-menu" id="countries-menu"></ul>
           </li>
-          <li><a href="#/episodios"><span class="fas fa-tv"></span> Episodios</a></li>
-          <li><a href="#/animes">Animes</a></li>
-          <li><a href="#/imdb"><span class="fas fa-star"></span> Ranking IMDb</a></li>
+          <li><a href="#/episodios">Episodios</a></li>
         </ul>
       </div>
 
