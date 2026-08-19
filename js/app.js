@@ -250,6 +250,10 @@ async function route() {
     case "genero": return parts[1] ? renderGenre(parts[1], parts[2], parts[3]) : renderHome();
     case "pais": return parts[1] ? renderCountry(parts[1], parts[2], parts[3]) : renderHome();
     case "detalle": return parts[1] && parts[2] ? renderDetail(parts[1], parts[2]) : renderHome();
+    case "privacidad": return renderLegalPage("privacidad");
+    case "terminos": return renderLegalPage("terminos");
+    case "cookies": return renderLegalPage("cookies");
+    case "contacto": return renderLegalPage("contacto");
     default: return renderHome();
   }
 }
@@ -434,6 +438,83 @@ function renderCountry(slug, seg2, seg3) {
     ${typeFilterTabs(base, type)}
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, `${base}${type ? `/${type}` : ""}`)}`;
+}
+
+// ------------- Legal / information pages -------------
+function updateLegalSEO(kind) {
+  const seo = {
+    privacidad: {
+      title: "Política de Privacidad | PelisLatinoHD",
+      description: "Conoce cómo PelisLatinoHD puede procesar datos técnicos, utilizar servicios de terceros y proteger la privacidad de sus visitantes."
+    },
+    terminos: {
+      title: "Términos de Uso | PelisLatinoHD",
+      description: "Consulta las condiciones de uso de PelisLatinoHD, el alcance del sitio, los enlaces externos, la publicidad y las responsabilidades del visitante."
+    },
+    cookies: {
+      title: "Política de Cookies | PelisLatinoHD",
+      description: "Conoce qué son las cookies, cómo pueden utilizarse en PelisLatinoHD y cómo gestionar tus preferencias desde el navegador."
+    },
+    contacto: {
+      title: "Contacto | PelisLatinoHD",
+      description: "Encuentra el correo de contacto de PelisLatinoHD para consultas sobre privacidad, derechos de autor, publicidad y funcionamiento del sitio."
+    }
+  };
+  const data = seo[kind] || seo.privacidad;
+  const canonical = `${window.location.origin}/${kind}`;
+
+  document.title = data.title;
+  const setMeta = (selector, attribute, value) => {
+    let meta = document.head.querySelector(selector);
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute(attribute.split("=")[0], attribute.split("=")[1]);
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", value);
+  };
+  setMeta('meta[name="description"]', "name=description", data.description);
+  setMeta('meta[name="robots"]', "name=robots", "index,follow");
+  setMeta('meta[property="og:type"]', "property=og:type", "website");
+  setMeta('meta[property="og:title"]', "property=og:title", data.title);
+  setMeta('meta[property="og:description"]', "property=og:description", data.description);
+  setMeta('meta[property="og:url"]', "property=og:url", canonical);
+  setMeta('meta[name="twitter:card"]', "name=twitter:card", "summary");
+  setMeta('meta[name="twitter:title"]', "name=twitter:title", data.title);
+  setMeta('meta[name="twitter:description"]', "name=twitter:description", data.description);
+
+  let link = document.head.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", canonical);
+}
+
+async function renderLegalPage(kind) {
+  const validKinds = ["privacidad", "terminos", "cookies", "contacto"];
+  const pageKind = validKinds.includes(kind) ? kind : "privacidad";
+  const url = `/legal/${pageKind}.html`;
+  updateLegalSEO(pageKind);
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    root.innerHTML = html;
+  } catch (error) {
+    console.error(`Error cargando ${url}:`, error);
+    root.innerHTML = `
+      <article class="legal-page">
+        <p class="legal-kicker">Información del sitio</p>
+        <h1 class="page-title">Error</h1>
+        <div class="legal-content">
+          <p>No se pudo cargar el contenido de esta página. Inténtalo de nuevo más tarde.</p>
+        </div>
+        <a class="back legal-back" href="/">&larr; Volver al inicio</a>
+      </article>`;
+  }
 }
 
 // ------------- Detail -------------
