@@ -59,4 +59,43 @@ for (const item of items) {
   writeFileSync(join(folder, "index.html"), page);
 }
 
-console.log(`[social-pages] Generated ${items.length} detail pages.`);
+// Section landing pages (/peliculas/, /series/, ...) so clean-route URLs are
+// real files too, not just SPA+pushState.
+const SECTIONS = [
+  { path: "tendencias", title: "Tendencias", desc: "Películas y series en tendencia en PelisLatinoHD." },
+  { path: "peliculas", title: "Películas", desc: "Ver películas online gratis en HD en PelisLatinoHD." },
+  { path: "series", title: "Series", desc: "Todas las series con temporadas y episodios en PelisLatinoHD." },
+  { path: "episodios", title: "Episodios", desc: "Últimos episodios de tus series en PelisLatinoHD." },
+  { path: "animes", title: "Animes", desc: "Animes online gratis en Latino en PelisLatinoHD." },
+  { path: "imdb", title: "Ranking IMDb", desc: "Las mejores películas y series según IMDb en PelisLatinoHD." }
+];
+
+for (const sec of SECTIONS) {
+  const url = `${origin}/${sec.path}/`;
+  const folder = join(ROOT, sec.path);
+  mkdirSync(folder, { recursive: true });
+  const socialHead = `
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PelisLatinoHD">
+<meta property="og:title" content="${esc(sec.title)} - PelisLatinoHD">
+<meta property="og:description" content="${esc(sec.desc)}">
+<meta property="og:image" content="${esc(sec.image || `${origin}/social-default.jpg`)}">
+<meta property="og:url" content="${esc(url)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(sec.title)} - PelisLatinoHD">
+<meta name="twitter:description" content="${esc(sec.desc)}">
+<meta name="twitter:image" content="${esc(sec.image || `${origin}/social-default.jpg`)}">`;
+  const page = template
+    .replace("<head>", `<head>\n<base href="/">${socialHead}`)
+    .replace(
+      /<meta name="description" content="[^"]*"\s*\/?>/,
+      `<meta name="description" content="${esc(sec.desc)}" />`
+    )
+    .replace(
+      /<title>[^<]*<\/title>/,
+      `<title>${esc(sec.title)} - PelisLatinoHD</title>`
+    );
+  writeFileSync(join(folder, "index.html"), page);
+}
+
+console.log(`[social-pages] Generated ${items.length} detail pages + ${SECTIONS.length} section pages.`);

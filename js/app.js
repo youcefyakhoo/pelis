@@ -638,6 +638,28 @@ root.addEventListener("click", (e) => {
   if (epCard) { openPlayer(epCard.dataset.src, epCard.dataset.name); return; }
 });
 
+// Internal clean-route navigation. The static host only serves real files
+// (detalle/... and the section pages), so /peliculas, /series, /genero/...,
+// pagination etc. would 404 on a full page load. Intercept and render SPA-side.
+// Detail routes (/detalle/...) are intentionally EXCLUDED: they must load via
+// normal navigation so the server delivers the static HTML and Facebook/crawlers
+// read the Open Graph metadata from the real file.
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("a[href]");
+  if (!link) return;
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const href = link.getAttribute("href") || "";
+  if (!href.startsWith("/") || href.startsWith("//")) return;
+  if (href.startsWith("http") || href.startsWith("javascript:") || href.startsWith("#")) return;
+  if (href.startsWith("/detalle/")) return;
+  if (link.target && link.target !== "_self") return;
+  e.preventDefault();
+  history.pushState({}, "", href);
+  window.scrollTo(0, 0);
+  route();
+  highlightNav();
+});
+
 window.addEventListener("popstate", () => {
   window.scrollTo(0, 0);
   route();
