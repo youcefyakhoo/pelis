@@ -34,14 +34,19 @@ jobs:
       - name: Run incremental updater
         run: node scraper/update.mjs
 
-      - name: Commit catalog changes
+      - name: Generate social HTML pages
+        env:
+          SITE_ORIGIN: https://pelis.plisplus.workers.dev
+        run: node scripts/generate-social-pages.mjs
+
+      - name: Commit catalog and social pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/catalog.json data/meta/genres.json data/meta/countries.json
+          git add -A data/catalog.json data/meta/genres.json data/meta/countries.json detalle/
           if git diff --cached --quiet; then
-            echo "No catalog changes to commit"
+            echo "No catalog or social-page changes to commit"
           else
-            git commit -m "chore: update catalog $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git commit -m "chore: update catalog and social pages $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push
           fi

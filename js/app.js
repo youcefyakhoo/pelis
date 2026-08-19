@@ -20,6 +20,24 @@ let loaded = false;
 const root = document.getElementById("main-content");
 const header = document.querySelector("header.main");
 
+function getRouteParts() {
+  // Admite temporalmente los enlaces antiguos con hash.
+  // Cuando todos los enlaces hayan sido migrados, se puede eliminar el fallback.
+  const cleanPath = window.location.pathname
+    .replace(/^\/+|\/+$/g, "");
+
+  if (cleanPath) return cleanPath.split("/").filter(Boolean);
+
+  return window.location.hash
+    .replace(/^#\/?/, "")
+    .split("/")
+    .filter(Boolean);
+}
+
+function routeUrl(path) {
+  return `/${String(path).replace(/^\/+/, "")}`;
+}
+
 async function loadData() {
   if (loaded) return;
   try {
@@ -69,7 +87,7 @@ function resolveSlugs(slugs, type) {
 // ------------- UI renderers -------------
 function card(item) {
   const typeLabel = item.type === "movie" ? "Película" : "Serie";
-  const href = `#/detalle/${item.type}/${item.slug}`;
+  const href = routeUrl(`detalle/${item.type}/${item.slug}/`);
   const rating = item.rating > 0 ? `<span class="rating-c">★ ${item.rating.toFixed(1)}</span>` : "";
   const year = item.year ? `<span class="year">${esc(item.year)}</span>` : "";
   const genres = (item.genres || []).map(genreName).filter(Boolean).slice(0, 3).join(", ");
@@ -94,7 +112,9 @@ function card(item) {
 function episodeHomeCard(ep) {
   // find the serie to link detail
   const serie = CATALOG.series.find((s) => s.title.toLowerCase() === String(ep.serie || "").toLowerCase());
-  const href = serie ? `#/detalle/series/${serie.slug}` : "#/episodios";
+  const href = serie
+    ? routeUrl(`detalle/series/${serie.slug}/`)
+    : routeUrl("episodios/");
   const label = `T${ep.season} E${ep.episode}`;
   const poster = serie ? serie.poster : null;
   return `
@@ -127,7 +147,7 @@ function renderSlider(title, items) {
       const bg = it.backdrop || it.poster;
       const bgStyle = `background-image:url('${esc(bg)}')`;
       return `
-      <div class="slide" style="${bgStyle}" onclick="location.hash='#/detalle/${it.type}/${it.slug}'">
+      <div class="slide" style="${bgStyle}" onclick="location.href='/detalle/${it.type}/${it.slug}/'">
         <div class="bg"></div>
         <div class="content">
           <h2>${esc(it.title)}</h2>
@@ -214,15 +234,14 @@ function paginatedList(items, page, base) {
 // ------------- Router -------------
 async function route() {
   await loadData();
-  const hash = location.hash.replace(/^#\//, "");
-  const parts = hash.split("/").filter(Boolean);
+  const parts = getRouteParts();
 
   if (!parts.length) return renderHome();
 
   switch (parts[0]) {
     case "home": return renderHome();
     case "peliculas": return renderMovies(parts[1], parts[2]);
-    case "series": return renderListing("Series", CATALOG.series, parts[1], "#/series");
+    case "series": return renderListing("Series", CATALOG.series, parts[1], "/series");
     case "episodios": return renderEpisodesPage(parts[1]);
     case "tendencias": return renderTendencias(parts[1]);
     case "imdb": return renderIMDb(parts[1]);
@@ -251,18 +270,18 @@ function renderHome() {
 
   let html = "";
   html += renderSlider("", recommended);
-  html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "#/peliculas", `<span class="fas fa-film"></span>`);
+  html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`);
   html += `
     <section class="module">
       <div class="content">
-        <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="#/episodios">Ver todo <span class="fas fa-angle-right"></span></a></header>
+        <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="/episodios">Ver todo <span class="fas fa-angle-right"></span></a></header>
         <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
       </div>
     </section>`;
-  html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "#/series", `<span class="fas fa-th-list"></span>`);
-  html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "#/animes", `<span class="fas fa-fire"></span>`);
-  html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "#/tag/superhero", `<span class="fas fa-bolt"></span>`);
-  html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "#/tag/cartoon", `<span class="fas fa-paint-brush"></span>`);
+  html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`);
+  html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`);
+  html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`);
+  html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "/tag/cartoon", `<span class="fas fa-paint-brush"></span>`);
 
   root.innerHTML = html;
   initSlider();
@@ -297,7 +316,7 @@ function alphaIndex(currentLetter) {
     const active = currentLetter === letter;
     items.push(active
       ? `<li class="active"><span>${letter}</span></li>`
-      : `<li><a href="#/peliculas/${letter === "#" ? "#" : letter}">${letter}</a></li>`);
+      : `<li><a href="/peliculas/${letter === "#" ? "#" : letter}">${letter}</a></li>`);
   }
   return `<ul class="glossary">${items.join("")}</ul>`;
 }
@@ -314,7 +333,7 @@ function renderMovies(letter, pageStr) {
   const page = parseInt(pageStr, 10) || 1;
   const all = [...CATALOG.movies].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "es"));
   const lettered = key ? all.filter((x) => firstLetter(x) === key) : all;
-  const paged = paginatedList(lettered, page, `#/peliculas/${key ? (key === "#" ? "#" : key) : "#"}`);
+  const paged = paginatedList(lettered, page, `/peliculas/${key ? (key === "#" ? "#" : key) : "#"}`);
   root.innerHTML = `
     <h1 class="page-title">Películas</h1>
     <p class="count-results">${lettered.length} títulos${key ? ` · letra ${esc(key)}` : ""}</p>
@@ -328,7 +347,7 @@ function renderTendencias(pageStr) {
   root.innerHTML = `
     <h1 class="page-title">Tendencias</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, "#/tendencias")}`;
+    ${paginatedList(items, page, "/tendencias")}`;
 }
 
 function renderIMDb(pageStr) {
@@ -337,7 +356,7 @@ function renderIMDb(pageStr) {
   root.innerHTML = `
     <h1 class="page-title"><span class="fas fa-star"></span> Ranking IMDb</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, "#/imdb")}`;
+    ${paginatedList(items, page, "/imdb")}`;
 }
 
 function renderEpisodesPage(pageStr) {
@@ -354,7 +373,7 @@ function renderEpisodesPage(pageStr) {
     <h1 class="page-title"><span class="fas fa-tv"></span> Nuevos Episodios</h1>
     <p class="count-results">${eps.length} episodios</p>
     ${grid}
-    ${pagination(eps.length, p, "#/episodios")}`;
+    ${pagination(eps.length, p, "/episodios")}`;
   bindRecentEpisodes();
 }
 
@@ -369,7 +388,7 @@ function renderTagByName(slug, pageStr) {
   root.innerHTML = `
     <h1 class="page-title">${esc(names[slug] || slug)}</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(items, page, `#/tag/${slug}`)}`;
+    ${paginatedList(items, page, `/tag/${slug}`)}`;
 }
 
 // Type-filter tabs used by genre/country pages (like the original site).
@@ -386,7 +405,7 @@ function renderGenre(slug, seg2, seg3) {
   const target = (CATALOG.genresList || []).find((g) => g.slug === slug || String(g.id) === slug || norm(g.name) === norm(slug));
   const gid = target ? target.id : Object.keys(CATALOG.genres).find((id) => norm(genreName(id)) === norm(slug));
   const name = target ? target.name : (gid ? genreName(gid) : slug);
-  const base = gid ? `#/genero/${genreSlug(gid)}` : `#/genero/${slug}`;
+  const base = gid ? `/genero/${genreSlug(gid)}` : `/genero/${slug}`;
   const pool = type === "movies" ? CATALOG.movies : type === "tv" ? CATALOG.series : allItems();
   const items = pool
     .filter((x) => (x.genres || []).includes(gid ? Number(gid) : -1))
@@ -405,7 +424,7 @@ function renderCountry(slug, seg2, seg3) {
   const target = (CATALOG.countriesList || []).find((c) => c.slug === slug || String(c.id) === slug || norm(c.name) === norm(slug));
   const cid = target ? target.id : Object.keys(CATALOG.countries).find((id) => norm(countryName(id)) === norm(slug));
   const name = target ? target.name : (cid ? countryName(cid) : slug);
-  const base = cid ? `#/pais/${countrySlug(cid)}` : `#/pais/${slug}`;
+  const base = cid ? `/pais/${countrySlug(cid)}` : `/pais/${slug}`;
   const pool = type === "movies" ? CATALOG.movies : type === "tv" ? CATALOG.series : allItems();
   const items = pool
     .filter((x) => (x.countries || []).includes(cid ? Number(cid) : -1))
@@ -425,13 +444,13 @@ function renderDetail(type, slug) {
   const genres = (item.genres || [])
     .map((gid) => ({ name: genreName(gid), slug: genreSlug(gid) }))
     .filter((g) => g.name)
-    .map((g) => `<a href="#/genero/${encodeURIComponent(g.slug || g.name)}">${esc(g.name)}</a>`)
+    .map((g) => `<a href="/genero/${encodeURIComponent(g.slug || g.name)}">${esc(g.name)}</a>`)
     .join("");
 
   const metaSpans = `
     ${item.year ? `<span>${esc(item.year)}</span>` : ""}
     ${item.runtime ? `<span>${esc(item.runtime)} min</span>` : ""}
-    ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="#/pais/${encodeURIComponent(cs)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
+    ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="/pais/${encodeURIComponent(cs)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
     ${item.rated ? `<span>${esc(item.rated)}</span>` : ""}
     ${item.rating ? `<span class="rate">★ IMDb ${item.rating.toFixed(1)}</span>` : ""}
     ${item.tmdbRating ? `<span class="rate">★ TMDb ${item.tmdbRating.toFixed(1)}</span>` : ""}
@@ -619,9 +638,10 @@ root.addEventListener("click", (e) => {
   if (epCard) { openPlayer(epCard.dataset.src, epCard.dataset.name); return; }
 });
 
-window.addEventListener("hashchange", () => {
+window.addEventListener("popstate", () => {
   window.scrollTo(0, 0);
   route();
+  highlightNav();
 });
 window.addEventListener("DOMContentLoaded", init);
 
@@ -650,7 +670,7 @@ function buildHeaderMenus() {
   const cMenu = document.getElementById("countries-menu");
   if (gMenu) {
     gMenu.innerHTML = (CATALOG.genresList || [])
-      .map((g) => `<li><a href="#/genero/${encodeURIComponent(g.slug)}">${esc(g.name)}</a></li>`)
+      .map((g) => `<li><a href="/genero/${encodeURIComponent(g.slug)}">${esc(g.name)}</a></li>`)
       .join("");
   }
   if (cMenu) {
@@ -659,16 +679,16 @@ function buildHeaderMenus() {
     cMenu.innerHTML = HEADER_COUNTRIES
       .map((name) => byName[name])
       .filter(Boolean)
-      .map((c) => `<li><a href="#/pais/${encodeURIComponent(c.slug)}">${esc(HEADER_COUNTRY_ALIASES[c.name] || c.name)}</a></li>`)
+      .map((c) => `<li><a href="/pais/${encodeURIComponent(c.slug)}">${esc(HEADER_COUNTRY_ALIASES[c.name] || c.name)}</a></li>`)
       .join("");
   }
 }
 
 function highlightNav() {
-  const hash = location.hash.replace(/^#\//, "").split("/")[0];
+  const currentRoute = getRouteParts()[0] || "";
   const map = { peliculas: "peliculas", series: "series" };
   header.querySelectorAll("a[data-route]").forEach((a) => {
-    a.parentElement.classList.toggle("active", a.dataset.route === map[hash]);
+    a.parentElement.classList.toggle("active", a.dataset.route === map[currentRoute]);
   });
 }
 
@@ -680,7 +700,11 @@ function initSearch() {
 
   const doSearch = (q) => {
     q = q.trim().toLowerCase();
-    if (!q) { location.hash = "#/"; return; }
+    if (!q) {
+      history.pushState({}, "", "/");
+      route();
+      return;
+    }
     const res = allItems().filter(
       (x) => x.title.toLowerCase().includes(q) || (x.originalTitle || "").toLowerCase().includes(q)
     );
