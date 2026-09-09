@@ -14,6 +14,17 @@ const el = (html) => {
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ------------- Google Ad Manager (GPT) grid helpers -------------
+const gamBoxHTML = () => '<div class="item ad-in-grid" id="div-gpt-ad-box"></div>';
+const gamNativeHTML = () => '<div class="item ad-in-grid ad-native" id="div-gpt-ad-native"></div>';
+const adMount = () => { if (window.GamBox) window.GamBox.show(); if (window.GamNative) window.GamNative.show(); };
+function withGridAds(cards) {
+  const out = [];
+  cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
+  out.push(gamNativeHTML());
+  return out.join("");
+}
+
 let CATALOG = { movies: [], series: [], genres: {}, countries: {}, genresList: [], countriesList: [], tags: {}, recentEpisodes: [], meta: {} };
 let loaded = false;
 
@@ -125,7 +136,7 @@ function episodeHomeCard(ep) {
   </div>`;
 }
 
-function renderModule(title, items, link, icon) {
+function renderModule(title, items, link, icon, ads) {
   return `
   <section class="module">
     <div class="content">
@@ -133,7 +144,7 @@ function renderModule(title, items, link, icon) {
         <h2>${icon || ""} ${esc(title)}</h2>
         ${link ? `<a class="see-all" href="${link}">Ver todo <span class="fas fa-angle-right"></span></a>` : ""}
       </header>
-      <div class="items">${items.map(card).join("")}</div>
+      <div class="items">${ads ? withGridAds(items.map(card)) : items.map(card).join("")}</div>
     </div>
   </section>`;
 }
@@ -227,7 +238,7 @@ function paginatedList(items, page, base) {
   const p = Math.min(Math.max(1, page), pages);
   const slice = items.slice((p - 1) * PER_PAGE, p * PER_PAGE);
   return `
-    <div class="items">${slice.map(card).join("")}</div>
+    <div class="items">${withGridAds(slice.map(card))}</div>
     ${pagination(items.length, p, base)}`;
 }
 
@@ -274,7 +285,7 @@ function renderHome() {
 
   let html = "";
   html += renderSlider("", recommended);
-  html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`);
+  html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`, true);
   html += `
     <section class="module">
       <div class="content">
@@ -290,6 +301,7 @@ function renderHome() {
   root.innerHTML = html;
   initSlider();
   bindRecentEpisodes();
+  adMount();
 }
 
 function bindRecentEpisodes() {
@@ -308,6 +320,7 @@ function renderListing(title, items, pageStr, base) {
     <h1 class="page-title">${esc(title)}</h1>
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(sorted, page, base)}`;
+  adMount();
 }
 
 // Alphabet index (A-Z) used by the movies listing, like the original site.
@@ -343,6 +356,7 @@ function renderMovies(letter, pageStr) {
     <p class="count-results">${lettered.length} títulos${key ? ` · letra ${esc(key)}` : ""}</p>
     ${alphaIndex(key)}
     ${paged}`;
+  adMount();
 }
 
 function renderTendencias(pageStr) {
@@ -352,6 +366,7 @@ function renderTendencias(pageStr) {
     <h1 class="page-title">Tendencias</h1>
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, "/tendencias")}`;
+  adMount();
 }
 
 function renderIMDb(pageStr) {
@@ -361,6 +376,7 @@ function renderIMDb(pageStr) {
     <h1 class="page-title"><span class="fas fa-star"></span> Ranking IMDb</h1>
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, "/imdb")}`;
+  adMount();
 }
 
 function renderEpisodesPage(pageStr) {
@@ -393,6 +409,7 @@ function renderTagByName(slug, pageStr) {
     <h1 class="page-title">${esc(names[slug] || slug)}</h1>
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, `/tag/${slug}`)}`;
+  adMount();
 }
 
 // Type-filter tabs used by genre/country pages (like the original site).
@@ -419,6 +436,7 @@ function renderGenre(slug, seg2, seg3) {
     ${typeFilterTabs(base, type)}
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, `${base}${type ? `/${type}` : ""}`)}`;
+  adMount();
 }
 
 function renderCountry(slug, seg2, seg3) {
@@ -438,6 +456,7 @@ function renderCountry(slug, seg2, seg3) {
     ${typeFilterTabs(base, type)}
     <p class="count-results">${items.length} títulos</p>
     ${paginatedList(items, page, `${base}${type ? `/${type}` : ""}`)}`;
+  adMount();
 }
 
 // ------------- Legal / information pages -------------
@@ -518,6 +537,20 @@ async function renderLegalPage(kind) {
 }
 
 // ------------- Detail -------------
+// Social bar (compartir) del detalle
+function renderSocialBar(item) {
+  const url = encodeURIComponent(`${location.origin}${location.pathname}${location.search}`);
+  const t = encodeURIComponent(item.title);
+  return `
+  <div class="social-bar">
+    <span class="sb-label">Compartir:</span>
+    <a class="sb-btn sb-fb" rel="noopener" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=${url}" aria-label="Facebook">f</a>
+    <a class="sb-btn sb-x" rel="noopener" target="_blank" href="https://twitter.com/intent/tweet?url=${url}&text=${t}" aria-label="X">X</a>
+    <a class="sb-btn sb-wa" rel="noopener" target="_blank" href="https://api.whatsapp.com/send?text=${t}%20${url}" aria-label="WhatsApp">&#10003;</a>
+    <a class="sb-btn sb-tg" rel="noopener" target="_blank" href="https://t.me/share/url?url=${url}&text=${t}" aria-label="Telegram">&#9992;</a>
+  </div>`;
+}
+
 function renderDetail(type, slug) {
   const item = findBySlug(type, slug);
   if (!item) { root.innerHTML = `<div class="empty">No se encontró el título.</div>`; return; }
@@ -591,6 +624,7 @@ function renderDetail(type, slug) {
           ${synopsisBlock}
           ${keywordsBlock}
           ${genres ? `<div class="genres">${genres}</div>` : ""}
+          ${renderSocialBar(item)}
           ${playBtn}
         </div>
       </div>
