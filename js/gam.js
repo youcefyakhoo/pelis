@@ -81,4 +81,18 @@ googletag.cmd.push(function () {
       });
     }
   };
+
+  window.GamMonetag = {
+    alive: false,
+    show: function () {
+      if (!document.getElementById("div-gpt-ad-monetag-direct")) return;
+      var self = this;
+      googletag.cmd.push(function () {
+        if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
+        self.slot = googletag.defineSlot("/23205308506/monetag_direct", [728, 90], "div-gpt-ad-monetag-direct").addService(pubads);
+        self.alive = true;
+        googletag.display("div-gpt-ad-monetag-direct");
+      });
+    }
+  };
 });

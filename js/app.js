@@ -23,10 +23,12 @@ const adMount = () => {
   if (window.GamDetail) window.GamDetail.show();
   if (window.GamHoriz) window.GamHoriz.show();
   if (window.GamLeader) window.GamLeader.show();
+  if (window.GamMonetag) window.GamMonetag.show();
 };
 const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
 const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
 const adInFeedHTML = '<div class="ad-slot ad-infeed" id="div-gpt-ad-infeed"></div>';
+const adMonetagDirectHTML = '<div class="ad-slot ad-monetag-direct" id="div-gpt-ad-monetag-direct"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -308,6 +310,7 @@ function renderHome() {
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
   html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "/tag/cartoon", `<span class="fas fa-paint-brush"></span>`, true);
+  html += adMonetagDirectHTML;
 
   root.innerHTML = html;
   initSlider();
@@ -647,6 +650,7 @@ function renderDetail(type, slug) {
       ${castBlock}
       ${adDetailLeaderHTML}
       ${relatedBlock}
+      ${adMonetagDirectHTML}
     </section>`;
 
   const btn = root.querySelector(".play-btn");

@@ -869,10 +869,12 @@ footer.main {
 /* Ficha: sin columna lateral, anuncios integrados en el flujo y en el grid */
 .ad-detail-leader { max-width: 1200px; }
 .ad-infeed { max-width: 1200px; }
+.ad-monetag-direct { max-width: 1200px; }
 
 @media (max-width: 820px) {
   .ad-detail-leader { display: none; }
   .ad-infeed { display: none; }
+  .ad-monetag-direct { display: none; }
 }
 
 /* ---------- Social bar (compartir) ---------- */
