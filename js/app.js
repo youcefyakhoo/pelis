@@ -22,11 +22,9 @@ const adMount = () => {
   if (window.GamNative) window.GamNative.show();
   if (window.GamDetail) window.GamDetail.show();
   if (window.GamHoriz) window.GamHoriz.show();
-  if (window.GamSide) window.GamSide.show();
 };
 const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
 const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
-const adSideHTML = '<div class="ad-slot ad-side" id="div-gpt-ad-side"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -621,37 +619,30 @@ function renderDetail(type, slug) {
   root.innerHTML = `
     <a class="back" href="javascript:history.back()">&larr; Volver</a>
     <section class="module">
-      <div class="detail-body">
-        <div class="detail-main">
-          <div class="detail-head">
-            <div class="poster-big">
-              <img src="${esc(item.poster)}" alt="${esc(item.title)}" onerror="this.style.display='none'"/>
-            </div>
-            <div class="detail-info">
-              <h1>${esc(item.title)}</h1>
-              ${item.originalTitle && item.originalTitle !== item.title ? `<p class="original">${esc(item.originalTitle)}</p>` : ""}
-              <div class="meta">${metaSpans}</div>
-              ${ratingsBlock}
-              ${synopsisBlock}
-              ${keywordsBlock}
-              ${genres ? `<div class="genres">${genres}</div>` : ""}
-              ${renderSocialBar(item)}
-              ${playBtn}
-            </div>
-          </div>
-          <div class="player-wrap" id="player-${item.slug}"></div>
-          ${adDetailHTML}
-          ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
-          ${episodeSection}
-          ${directorBlock}
-          ${castBlock}
-          ${adDetailLeaderHTML}
-          ${relatedBlock}
+      <div class="detail-head">
+        <div class="poster-big">
+          <img src="${esc(item.poster)}" alt="${esc(item.title)}" onerror="this.style.display='none'"/>
         </div>
-        <aside class="detail-side">
-          ${adSideHTML}
-        </aside>
+        <div class="detail-info">
+          <h1>${esc(item.title)}</h1>
+          ${item.originalTitle && item.originalTitle !== item.title ? `<p class="original">${esc(item.originalTitle)}</p>` : ""}
+          <div class="meta">${metaSpans}</div>
+          ${ratingsBlock}
+          ${synopsisBlock}
+          ${keywordsBlock}
+          ${genres ? `<div class="genres">${genres}</div>` : ""}
+          ${renderSocialBar(item)}
+          ${playBtn}
+        </div>
       </div>
+      <div class="player-wrap" id="player-${item.slug}"></div>
+      ${adDetailHTML}
+      ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
+      ${episodeSection}
+      ${directorBlock}
+      ${castBlock}
+      ${adDetailLeaderHTML}
+      ${relatedBlock}
     </section>`;
 
   const btn = root.querySelector(".play-btn");
@@ -694,7 +685,7 @@ function renderRelated(item) {
     .slice(0, 12)
     .map((o) => o.x);
   if (!scored.length) return "";
-  return `<section class="module related-module"><div class="content"><header><h2><span class="fas fa-clapperboard"></span> Títulos similares</h2></header><div class="items">${scored.map(card).join("")}</div></div></section>`;
+  return `<section class="module related-module"><div class="content"><header><h2><span class="fas fa-clapperboard"></span> Títulos similares</h2></header><div class="items">${withGridAds(scored.map(card))}</div></div></section>`;
 }
 
 function renderEpisodes(show) {
