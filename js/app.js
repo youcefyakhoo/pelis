@@ -24,7 +24,7 @@ const adMount = () => {
   if (window.GamHoriz) window.GamHoriz.show();
   if (window.GamSide) window.GamSide.show();
 };
-const adDetailHTML = '<div class="item ad-in-grid ad-native" id="div-gpt-ad-detail"></div>';
+const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
 const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
 const adSideHTML = '<div class="ad-slot ad-side" id="div-gpt-ad-side"></div>';
 function withGridAds(cards) {
@@ -302,10 +302,10 @@ function renderHome() {
         <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
       </div>
     </section>`;
-  html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`);
-  html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`);
-  html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`);
-  html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "/tag/cartoon", `<span class="fas fa-paint-brush"></span>`);
+  html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`, true);
+  html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
+  html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
+  html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "/tag/cartoon", `<span class="fas fa-paint-brush"></span>`, true);
 
   root.innerHTML = html;
   initSlider();
@@ -637,15 +637,15 @@ function renderDetail(type, slug) {
               ${genres ? `<div class="genres">${genres}</div>` : ""}
               ${renderSocialBar(item)}
               ${playBtn}
-              ${adDetailHTML}
             </div>
           </div>
-          ${adDetailLeaderHTML}
           <div class="player-wrap" id="player-${item.slug}"></div>
+          ${adDetailHTML}
           ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
           ${episodeSection}
           ${directorBlock}
           ${castBlock}
+          ${adDetailLeaderHTML}
           ${relatedBlock}
         </div>
         <aside class="detail-side">

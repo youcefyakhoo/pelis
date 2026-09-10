@@ -864,7 +864,7 @@ footer.main {
 }
 
 /* ---------- Google Ad Manager (detail) ---------- */
-.ad-detail { max-width: 300px; margin: 12px auto; }
+.ad-detail { max-width: 300px; margin: 22px auto; }
 
 /* Ficha con sidebar de anuncios: contenido + columna vertical sticky */
 .detail-body {
