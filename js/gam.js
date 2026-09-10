@@ -19,21 +19,27 @@ googletag.cmd.push(function () {
   });
 });
 
-// El display se hace de forma diferida: un display() síncrono en el cmd inicial
-// se pierde (nunca llega la petición gampad). Sondeando, cada slot dispara su
-// propia petición al aparecer en el DOM (el box 300x250 se inyecta dinámicamente).
-(function pollSlots() {
+// El display inmediato a veces se pierde (se traga la petición gampad durante el
+// arranque, p.ej. con el flujo de consentimiento/Funding Choices). Reintento
+// diferido: un único display extra por slot que aún no trae iframe.
+setTimeout(function () {
+  googletag.cmd.push(function () {
+    ["div-gpt-ad-leader", "div-gpt-ad-mobile"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && !el.querySelector("iframe")) googletag.display(id);
+    });
+  });
+}, 2500);
+
+// El box 300x250 se inyecta en el grid de forma dinámica: cuando aparece en el
+// DOM lo mostramos. display() sobre un slot ya mostrado lo refresca.
+(function pollSidebar() {
   function tryShow() {
-    var slots = googletag.pubads().getSlots();
-    for (var i = 0; i < slots.length; i++) {
-      var id = slots[i].getSlotElementId();
-      if (id && id.indexOf("gpt_unit_") !== 0 && document.getElementById(id)) {
-        (function (sid) {
-          googletag.cmd.push(function () { googletag.display(sid); });
-        })(id);
-      }
+    if (!gptDesktop) return;
+    if (document.getElementById("div-gpt-ad-sidebar")) {
+      googletag.cmd.push(function () { googletag.display("div-gpt-ad-sidebar"); });
     }
   }
   tryShow();
-  setInterval(tryShow, 400);
+  setInterval(tryShow, 500);
 })();
