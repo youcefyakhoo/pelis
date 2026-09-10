@@ -15,22 +15,15 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // ------------- Google Ad Manager (GPT) grid helpers -------------
-const gamBoxHTML = () => '<div class="item ad-in-grid" id="div-gpt-ad-box"></div>';
-const gamNativeHTML = () => '<div class="item ad-in-grid ad-native" id="div-gpt-ad-native"></div>';
-const adMount = () => {
-  if (window.GamBox) window.GamBox.show();
-  if (window.GamNative) window.GamNative.show();
-  if (window.GamDetail) window.GamDetail.show();
-  if (window.GamHoriz) window.GamHoriz.show();
-  if (window.GamLeader) window.GamLeader.show();
-  if (window.GamStrip) window.GamStrip.show();
-  if (window.GamUnder) window.GamUnder.show();
-};
-const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
-const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
-const adInFeedHTML = '<div class="ad-slot ad-infeed" id="div-gpt-ad-infeed"></div>';
-const adStripHTML = '<div class="ad-slot ad-cash-strip" id="div-gpt-ad-cash-strip"></div>';
-const adUnderHTML = '<div class="ad-slot ad-cash-under" id="div-gpt-ad-cash-under"></div>';
+const adDirect = (zoneId) => '<script>try{aclib.runBanner({ zoneId: \'' + zoneId + '\' });}catch(e){}</script>';
+const gamBoxHTML = () => '<div class="item ad-in-grid">' + adDirect('12136390') + '</div>';
+const gamNativeHTML = () => '<div class="item ad-in-grid ad-native">' + adDirect('12136398') + '</div>';
+const adMount = () => {};
+const adDetailHTML = '<div class="ad-slot ad-detail">' + adDirect('12136382') + '</div>';
+const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader">' + adDirect('12136342') + '</div>';
+const adInFeedHTML = '<div class="ad-slot ad-infeed">' + adDirect('12136342') + '</div>';
+const adStripHTML = '<div class="ad-slot ad-cash-strip">' + adDirect('12136358') + '</div>';
+const adUnderHTML = '<div class="ad-slot ad-cash-under">' + adDirect('12136350') + '</div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });

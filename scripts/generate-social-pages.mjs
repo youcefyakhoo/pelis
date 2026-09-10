@@ -34,8 +34,7 @@ for (const item of items) {
   mkdirSync(folder, { recursive: true });
 
   const interstitialHead = `
-<script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
-<script type="text/javascript">aclib.runInterstitial({ zoneId: '12136326' });</script>`;
+<script type="text/javascript">window.addEventListener('load', function () { try { aclib.runInterstitial({ zoneId: '12136326' }); } catch (e) {} });</script>`;
 
   const socialHead = `
 <meta property="og:type" content="${type}">
