@@ -53,4 +53,32 @@ googletag.cmd.push(function () {
       });
     }
   };
+
+  window.GamHoriz = {
+    alive: false,
+    show: function () {
+      if (!document.getElementById("div-gpt-ad-detail-leader")) return;
+      var self = this;
+      googletag.cmd.push(function () {
+        if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
+        self.slot = googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-detail-leader").addService(pubads);
+        self.alive = true;
+        googletag.display("div-gpt-ad-detail-leader");
+      });
+    }
+  };
+
+  window.GamSide = {
+    alive: false,
+    show: function () {
+      if (!document.getElementById("div-gpt-ad-side")) return;
+      var self = this;
+      googletag.cmd.push(function () {
+        if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
+        self.slot = googletag.defineSlot("/23205308506/sidebar_300x250", [300, 250], "div-gpt-ad-side").addService(pubads);
+        self.alive = true;
+        googletag.display("div-gpt-ad-side");
+      });
+    }
+  };
 });

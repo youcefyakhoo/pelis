@@ -17,8 +17,16 @@ const esc = (s) =>
 // ------------- Google Ad Manager (GPT) grid helpers -------------
 const gamBoxHTML = () => '<div class="item ad-in-grid" id="div-gpt-ad-box"></div>';
 const gamNativeHTML = () => '<div class="item ad-in-grid ad-native" id="div-gpt-ad-native"></div>';
-const adMount = () => { if (window.GamBox) window.GamBox.show(); if (window.GamNative) window.GamNative.show(); };
+const adMount = () => {
+  if (window.GamBox) window.GamBox.show();
+  if (window.GamNative) window.GamNative.show();
+  if (window.GamDetail) window.GamDetail.show();
+  if (window.GamHoriz) window.GamHoriz.show();
+  if (window.GamSide) window.GamSide.show();
+};
 const adDetailHTML = '<div class="item ad-in-grid ad-native" id="div-gpt-ad-detail"></div>';
+const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
+const adSideHTML = '<div class="ad-slot ad-side" id="div-gpt-ad-side"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -613,29 +621,37 @@ function renderDetail(type, slug) {
   root.innerHTML = `
     <a class="back" href="javascript:history.back()">&larr; Volver</a>
     <section class="module">
-      <div class="detail-head">
-        <div class="poster-big">
-          <img src="${esc(item.poster)}" alt="${esc(item.title)}" onerror="this.style.display='none'"/>
+      <div class="detail-body">
+        <div class="detail-main">
+          <div class="detail-head">
+            <div class="poster-big">
+              <img src="${esc(item.poster)}" alt="${esc(item.title)}" onerror="this.style.display='none'"/>
+            </div>
+            <div class="detail-info">
+              <h1>${esc(item.title)}</h1>
+              ${item.originalTitle && item.originalTitle !== item.title ? `<p class="original">${esc(item.originalTitle)}</p>` : ""}
+              <div class="meta">${metaSpans}</div>
+              ${ratingsBlock}
+              ${synopsisBlock}
+              ${keywordsBlock}
+              ${genres ? `<div class="genres">${genres}</div>` : ""}
+              ${renderSocialBar(item)}
+              ${playBtn}
+              ${adDetailHTML}
+            </div>
+          </div>
+          ${adDetailLeaderHTML}
+          <div class="player-wrap" id="player-${item.slug}"></div>
+          ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
+          ${episodeSection}
+          ${directorBlock}
+          ${castBlock}
+          ${relatedBlock}
         </div>
-        <div class="detail-info">
-          <h1>${esc(item.title)}</h1>
-          ${item.originalTitle && item.originalTitle !== item.title ? `<p class="original">${esc(item.originalTitle)}</p>` : ""}
-          <div class="meta">${metaSpans}</div>
-          ${ratingsBlock}
-          ${synopsisBlock}
-          ${keywordsBlock}
-          ${genres ? `<div class="genres">${genres}</div>` : ""}
-          ${renderSocialBar(item)}
-          ${playBtn}
-          ${adDetailHTML}
-        </div>
+        <aside class="detail-side">
+          ${adSideHTML}
+        </aside>
       </div>
-      <div class="player-wrap" id="player-${item.slug}"></div>
-      ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
-      ${episodeSection}
-      ${directorBlock}
-      ${castBlock}
-      ${relatedBlock}
     </section>`;
 
   const btn = root.querySelector(".play-btn");
