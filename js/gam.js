@@ -12,6 +12,15 @@ googletag.cmd.push(function () {
   googletag.display("div-gpt-ad-mobile");
   googletag.enableServices();
 
+  // Oculta los slots que GPT no puede llenar (unidades inactivas por política
+  // o sin inventario) para no dejar huecos vacíos en la pagina.
+  pubads.addEventListener("slotRenderEnded", function (e) {
+    if (e.isEmpty) {
+      var el = document.getElementById(e.slot.getSlotElementId());
+      if (el) el.style.display = "none";
+    }
+  });
+
   window.GamBox = {
     alive: false,
     show: function () {
