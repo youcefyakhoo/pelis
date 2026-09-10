@@ -329,7 +329,8 @@ function renderListing(title, items, pageStr, base) {
   root.innerHTML = `
     <h1 class="page-title">${esc(title)}</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${paginatedList(sorted, page, base)}`;
+    ${paginatedList(sorted, page, base)}
+    ${ad160x300Detail}`;
   adMount();
 }
 
@@ -639,7 +640,7 @@ function renderDetail(type, slug) {
         </div>
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
-      ${ad160x300Detail}
+      
       ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
       ${episodeSection}
       ${directorBlock}
