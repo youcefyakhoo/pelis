@@ -15,33 +15,18 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // ------------- Google Ad Manager (GPT) grid helpers -------------
-const adDirect = (zoneId) => '<script>try{aclib.runBanner({ zoneId: \'' + zoneId + '\' });}catch(e){}</script>';
 const gamBoxHTML = () => '<div class="item ad-in-grid ad-box" id="div-gpt-ad-sidebar"></div>';
-const gamNativeHTML = () => '<div class="item ad-in-grid ad-native">' + adDirect('12136398') + '</div>';
 const adMount = () => {};
-const adDetailHTML = '<div class="ad-slot ad-detail">' + adDirect('12136382') + '</div>';
-const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader">' + adDirect('12136342') + '</div>';
-const adInFeedHTML = '<div class="ad-slot ad-infeed">' + adDirect('12136342') + '</div>';
-const adStripHTML = '<div class="ad-slot ad-cash-strip">' + adDirect('12136358') + '</div>';
-const adUnderHTML = '<div class="ad-slot ad-cash-under">' + adDirect('12136350') + '</div>';
 function withGridAds(cards) {
   const n = cards.length;
   if (!n) return "";
-  const ads = [gamBoxHTML(), gamNativeHTML()];
+  const ads = [gamBoxHTML()];
   if (n < 4) return cards.concat(ads).join("");
   const min = 1;
   const max = n - 1;
-  let p1;
-  let p2;
-  do {
-    p1 = min + Math.floor(Math.random() * (max - min));
-    p2 = min + Math.floor(Math.random() * (max - min));
-  } while (p1 === p2 || Math.abs(p1 - p2) < 2);
+  const p = min + Math.floor(Math.random() * (max - min));
   const out = cards.slice();
-  const a = Math.min(p1, p2);
-  const b = Math.max(p1, p2);
-  out.splice(a, 0, ads[0]);
-  out.splice(b + 1, 0, ads[1]);
+  out.splice(p, 0, ads[0]);
   return out.join("");
 }
 
@@ -259,7 +244,6 @@ function paginatedList(items, page, base) {
   const slice = items.slice((p - 1) * PER_PAGE, p * PER_PAGE);
   return `
     <div class="items">${withGridAds(slice.map(card))}</div>
-    ${adInFeedHTML}
     ${pagination(items.length, p, base)}`;
 }
 
@@ -306,7 +290,6 @@ function renderHome() {
 
   let html = "";
   html += renderSlider("", recommended);
-  html += adStripHTML;
   html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`, true);
   html += `
     <section class="module">
@@ -315,7 +298,6 @@ function renderHome() {
         <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
       </div>
     </section>`;
-  html += adInFeedHTML;
   html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`, true);
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
@@ -342,7 +324,6 @@ function renderListing(title, items, pageStr, base) {
   root.innerHTML = `
     <h1 class="page-title">${esc(title)}</h1>
     <p class="count-results">${items.length} títulos</p>
-    ${adStripHTML}
     ${paginatedList(sorted, page, base)}`;
   adMount();
 }
@@ -653,13 +634,10 @@ function renderDetail(type, slug) {
         </div>
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
-      ${adDetailHTML}
-      ${adUnderHTML}
       ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
       ${episodeSection}
       ${directorBlock}
       ${castBlock}
-      ${adDetailLeaderHTML}
       ${relatedBlock}
     </section>`;
 

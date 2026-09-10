@@ -1,6 +1,6 @@
 // PelisLatinoHD - Google Ad Manager (GPT)
 // Escritorio: líder 728x90 (header_728x90) y box 300x250 (sidebar_300x250).
-// Móvil: sticky 320x50 (mobile_320x50). Los banners Adcash van directos vía aclib.
+// Móvil: sticky 320x50 (mobile_320x50).
 window.googletag = window.googletag || { cmd: [] };
 var gptDesktop = window.matchMedia("(min-width: 992px)").matches;
 googletag.cmd.push(function () {

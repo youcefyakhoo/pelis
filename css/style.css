@@ -819,16 +819,6 @@ footer.main {
   justify-content: center;
   overflow: hidden;
 }
-.items .ad-in-grid.ad-native {
-  grid-column: 1 / -1;
-  min-height: 110px;
-  align-self: stretch;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  position: relative;
-}
 .ad-slot { display: flex; justify-content: center; align-items: center; text-align: center; margin: 12px auto; overflow: hidden; line-height: 0; }
 .ad-slot iframe, .ad-slot > div { margin: 0 auto; }
 .ad-leader { max-width: 1200px; }
@@ -842,18 +832,6 @@ footer.main {
   grid-column: span 2;
 }
 
-/* Tile nativo al final del grid: ancho completo */
-.items .ad-in-grid.ad-native {
-  grid-column: 1 / -1;
-  min-height: 110px;
-  align-self: stretch;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  position: relative;
-}
-
 @media (max-width: 820px) {
   body.has-sticky-ad { padding-bottom: 70px; }
   .ad-sticky-mobile {
@@ -863,21 +841,11 @@ footer.main {
   }
 }
 
-/* ---------- Google Ad Manager (detail) ---------- */
-.ad-detail { max-width: 300px; margin: 22px auto; }
-
 /* Ficha: sin columna lateral, anuncios integrados en el flujo y en el grid */
-.ad-detail-leader { max-width: 1200px; }
-.ad-infeed { max-width: 1200px; }
 .ad-monetag-direct { max-width: 1200px; }
-.ad-cash-strip { max-width: 1200px; margin: 16px auto; display: flex; justify-content: center; }
-.ad-cash-under { max-width: 1200px; margin: 0 auto 16px; display: flex; justify-content: center; }
 
 @media (max-width: 820px) {
-  .ad-detail-leader { display: none; }
-  .ad-infeed { display: none; }
   .ad-monetag-direct { display: none; }
-  .ad-cash-under { display: none; }
 }
 
 /* ---------- Social bar (compartir) ---------- */
