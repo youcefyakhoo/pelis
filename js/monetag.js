@@ -2,6 +2,7 @@
 // Los tags se cargan solo despues de la primera interaccion del usuario
 // (scroll o click) para no molestar al entrar. La vignette se retrasa aun mas.
 (function () {
+  if (window.location.pathname.indexOf("/detalle/") !== 0) return;
   function inject(fn) {
     var s = document.createElement("script");
     s.async = true;

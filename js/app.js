@@ -310,7 +310,6 @@ function renderHome() {
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
   html += renderModule("Animados", cartoonItems.slice(0, HOME_ITEMS), "/tag/cartoon", `<span class="fas fa-paint-brush"></span>`, true);
-  html += adMonetagDirectHTML;
 
   root.innerHTML = html;
   initSlider();
