@@ -25,9 +25,23 @@ const adInFeedHTML = '<div class="ad-slot ad-infeed">' + adDirect('12136342') + 
 const adStripHTML = '<div class="ad-slot ad-cash-strip">' + adDirect('12136358') + '</div>';
 const adUnderHTML = '<div class="ad-slot ad-cash-under">' + adDirect('12136350') + '</div>';
 function withGridAds(cards) {
-  const out = [];
-  cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
-  out.push(gamNativeHTML());
+  const n = cards.length;
+  if (!n) return "";
+  const ads = [gamBoxHTML(), gamNativeHTML()];
+  if (n < 4) return cards.concat(ads).join("");
+  const min = 1;
+  const max = n - 1;
+  let p1;
+  let p2;
+  do {
+    p1 = min + Math.floor(Math.random() * (max - min));
+    p2 = min + Math.floor(Math.random() * (max - min));
+  } while (p1 === p2 || Math.abs(p1 - p2) < 2);
+  const out = cards.slice();
+  const a = Math.min(p1, p2);
+  const b = Math.max(p1, p2);
+  out.splice(a, 0, ads[0]);
+  out.splice(b + 1, 0, ads[1]);
   return out.join("");
 }
 
