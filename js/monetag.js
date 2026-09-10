@@ -13,17 +13,6 @@
   function boot() {
     if (started) return;
     started = true;
-    // Adcash Autotag (zona 9heve5hf9h) - popunder diferido
-    inject(function (s) {
-      s.id = "aclib";
-      s.src = "//acscdn.com/script/aclib.js";
-      s.onload = function () {
-        if (window.aclib && !window.__adcashTag) {
-          window.__adcashTag = true;
-          aclib.runAutoTag({ zoneId: "9heve5hf9h" });
-        }
-      };
-    });
     // In-Page Push (zona 11764699) - notificacion dentro de la pagina
     inject(function (s) { s.dataset.zone = "11764699"; s.src = "https://nap5k.com/tag.min.js"; });
     // Push notifications (zona 11764700)
