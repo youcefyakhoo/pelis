@@ -18,6 +18,7 @@ const esc = (s) =>
 const gamBoxHTML = () => '<div class="item ad-in-grid" id="div-gpt-ad-box"></div>';
 const gamNativeHTML = () => '<div class="item ad-in-grid ad-native" id="div-gpt-ad-native"></div>';
 const adMount = () => { if (window.GamBox) window.GamBox.show(); if (window.GamNative) window.GamNative.show(); };
+const adDetailHTML = '<div class="item ad-in-grid ad-native" id="div-gpt-ad-detail"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -626,6 +627,7 @@ function renderDetail(type, slug) {
           ${genres ? `<div class="genres">${genres}</div>` : ""}
           ${renderSocialBar(item)}
           ${playBtn}
+          ${adDetailHTML}
         </div>
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
@@ -646,6 +648,7 @@ function renderDetail(type, slug) {
     });
   }
   bindSeasonAccordion();
+  adMount();
 }
 
 // Person/people block (Director, Creador, Reparto)
