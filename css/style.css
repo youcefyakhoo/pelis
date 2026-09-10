@@ -897,7 +897,7 @@ footer.main {
 
 /* ---------- Adsterra via GAM en escritorio (2026-09-10) ---------- */
 .ad-slot.ad-desktop-only { display: none; }
-@media (min-width: 821px) {
+@media (min-width: 992px) {
   .ad-slot.ad-desktop-only { display: flex; }
 }
 .items .item.ad-box { min-height: 250px; }
