@@ -67,4 +67,18 @@ googletag.cmd.push(function () {
       });
     }
   };
+
+  window.GamLeader = {
+    alive: false,
+    show: function () {
+      if (!document.getElementById("div-gpt-ad-infeed")) return;
+      var self = this;
+      googletag.cmd.push(function () {
+        if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
+        self.slot = googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-infeed").addService(pubads);
+        self.alive = true;
+        googletag.display("div-gpt-ad-infeed");
+      });
+    }
+  };
 });

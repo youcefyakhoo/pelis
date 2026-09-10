@@ -22,9 +22,11 @@ const adMount = () => {
   if (window.GamNative) window.GamNative.show();
   if (window.GamDetail) window.GamDetail.show();
   if (window.GamHoriz) window.GamHoriz.show();
+  if (window.GamLeader) window.GamLeader.show();
 };
 const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
 const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
+const adInFeedHTML = '<div class="ad-slot ad-infeed" id="div-gpt-ad-infeed"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -246,6 +248,7 @@ function paginatedList(items, page, base) {
   const slice = items.slice((p - 1) * PER_PAGE, p * PER_PAGE);
   return `
     <div class="items">${withGridAds(slice.map(card))}</div>
+    ${adInFeedHTML}
     ${pagination(items.length, p, base)}`;
 }
 
@@ -300,6 +303,7 @@ function renderHome() {
         <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
       </div>
     </section>`;
+  html += adInFeedHTML;
   html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`, true);
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
