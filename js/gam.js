@@ -6,7 +6,7 @@ window.googletag = window.googletag || { cmd: [] };
 googletag.cmd.push(function () {
   var pubads = googletag.pubads();
   // Slots estáticos (carga inicial)
-  googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-leader").addService(pubads);
+  googletag.defineSlot("/23205308506/adcash_728x90", [728, 90], "div-gpt-ad-leader").addService(pubads);
   googletag.defineSlot("/23205308506/mobile_320x50", [320, 50], "div-gpt-ad-mobile").addService(pubads);
   googletag.display("div-gpt-ad-leader");
   googletag.display("div-gpt-ad-mobile");
@@ -19,7 +19,7 @@ googletag.cmd.push(function () {
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/sidebar_300x250", [300, 250], "div-gpt-ad-box").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_300x250", [300, 250], "div-gpt-ad-box").addService(pubads);
         self.alive = true;
         googletag.display("div-gpt-ad-box");
       });
@@ -33,7 +33,7 @@ googletag.cmd.push(function () {
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/native_tile", [300, 250], "div-gpt-ad-native").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_250x250", [250, 250], "div-gpt-ad-native").addService(pubads);
         self.alive = true;
         googletag.display("div-gpt-ad-native");
       });
@@ -47,7 +47,7 @@ googletag.cmd.push(function () {
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/native_tile", [300, 250], "div-gpt-ad-detail").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_336x280", [336, 280], "div-gpt-ad-detail").addService(pubads);
         self.alive = true;
         googletag.display("div-gpt-ad-detail");
       });
@@ -61,7 +61,7 @@ googletag.cmd.push(function () {
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-detail-leader").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_728x90", [728, 90], "div-gpt-ad-detail-leader").addService(pubads);
         self.alive = true;
         googletag.display("div-gpt-ad-detail-leader");
       });
@@ -75,23 +75,38 @@ googletag.cmd.push(function () {
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-infeed").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_728x90", [728, 90], "div-gpt-ad-infeed").addService(pubads);
         self.alive = true;
         googletag.display("div-gpt-ad-infeed");
       });
     }
   };
 
-  window.GamMonetag = {
+
+  window.GamStrip = {
     alive: false,
     show: function () {
-      if (!document.getElementById("div-gpt-ad-monetag-direct")) return;
+      if (!document.getElementById("div-gpt-ad-cash-strip")) return;
       var self = this;
       googletag.cmd.push(function () {
         if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
-        self.slot = googletag.defineSlot("/23205308506/monetag_direct", [728, 90], "div-gpt-ad-monetag-direct").addService(pubads);
+        self.slot = googletag.defineSlot("/23205308506/adcash_300x100", [300, 100], "div-gpt-ad-cash-strip").addService(pubads);
         self.alive = true;
-        googletag.display("div-gpt-ad-monetag-direct");
+        googletag.display("div-gpt-ad-cash-strip");
+      });
+    }
+  };
+
+  window.GamUnder = {
+    alive: false,
+    show: function () {
+      if (!document.getElementById("div-gpt-ad-cash-under")) return;
+      var self = this;
+      googletag.cmd.push(function () {
+        if (self.alive) { try { googletag.destroySlots([self.slot]); } catch (e) {} }
+        self.slot = googletag.defineSlot("/23205308506/adcash_468x60", [468, 60], "div-gpt-ad-cash-under").addService(pubads);
+        self.alive = true;
+        googletag.display("div-gpt-ad-cash-under");
       });
     }
   };

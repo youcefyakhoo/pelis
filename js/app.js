@@ -23,12 +23,14 @@ const adMount = () => {
   if (window.GamDetail) window.GamDetail.show();
   if (window.GamHoriz) window.GamHoriz.show();
   if (window.GamLeader) window.GamLeader.show();
-  if (window.GamMonetag) window.GamMonetag.show();
+  if (window.GamStrip) window.GamStrip.show();
+  if (window.GamUnder) window.GamUnder.show();
 };
 const adDetailHTML = '<div class="ad-slot ad-detail" id="div-gpt-ad-detail"></div>';
 const adDetailLeaderHTML = '<div class="ad-slot ad-detail-leader" id="div-gpt-ad-detail-leader"></div>';
 const adInFeedHTML = '<div class="ad-slot ad-infeed" id="div-gpt-ad-infeed"></div>';
-const adMonetagDirectHTML = '<div class="ad-slot ad-monetag-direct" id="div-gpt-ad-monetag-direct"></div>';
+const adStripHTML = '<div class="ad-slot ad-cash-strip" id="div-gpt-ad-cash-strip"></div>';
+const adUnderHTML = '<div class="ad-slot ad-cash-under" id="div-gpt-ad-cash-under"></div>';
 function withGridAds(cards) {
   const out = [];
   cards.forEach((c, i) => { if (i === 4) out.push(gamBoxHTML()); out.push(c); });
@@ -297,6 +299,7 @@ function renderHome() {
 
   let html = "";
   html += renderSlider("", recommended);
+  html += adStripHTML;
   html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`, true);
   html += `
     <section class="module">
@@ -332,6 +335,7 @@ function renderListing(title, items, pageStr, base) {
   root.innerHTML = `
     <h1 class="page-title">${esc(title)}</h1>
     <p class="count-results">${items.length} títulos</p>
+    ${adStripHTML}
     ${paginatedList(sorted, page, base)}`;
   adMount();
 }
@@ -643,13 +647,13 @@ function renderDetail(type, slug) {
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
       ${adDetailHTML}
+      ${adUnderHTML}
       ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
       ${episodeSection}
       ${directorBlock}
       ${castBlock}
       ${adDetailLeaderHTML}
       ${relatedBlock}
-      ${adMonetagDirectHTML}
     </section>`;
 
   const btn = root.querySelector(".play-btn");

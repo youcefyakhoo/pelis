@@ -33,6 +33,10 @@ for (const item of items) {
 
   mkdirSync(folder, { recursive: true });
 
+  const interstitialHead = `
+<script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
+<script type="text/javascript">aclib.runInterstitial({ zoneId: '12136326' });</script>`;
+
   const socialHead = `
 <meta property="og:type" content="${type}">
 <meta property="og:site_name" content="PelisLatinoHD">
@@ -46,7 +50,7 @@ for (const item of items) {
 <meta name="twitter:image" content="${esc(image)}">`;
 
   const page = template
-    .replace("<head>", `<head>\n<base href="/">${socialHead}`)
+    .replace("<head>", `<head>\n<base href="/">${interstitialHead}${socialHead}`)
     .replace(
       /<meta name="description" content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${esc(description)}" />`
