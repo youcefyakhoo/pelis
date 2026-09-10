@@ -16,6 +16,9 @@ const esc = (s) =>
 
 // ------------- Google Ad Manager (GPT) grid helpers -------------
 const gamBoxHTML = () => '<div class="item ad-in-grid ad-box" id="div-gpt-ad-sidebar"></div>';
+const ad468x60Home = '<div class="ad-slot ad-desktop-only" id="div-gpt-ad-468x60"></div>';
+const ad160x600Home = '<div class="ad-slot ad-desktop-only" id="div-gpt-ad-160x600"></div>';
+const ad160x300Detail = '<div class="ad-slot ad-desktop-only" id="div-gpt-ad-160x300"></div>';
 const adMount = () => {};
 function withGridAds(cards) {
   const n = cards.length;
@@ -290,6 +293,7 @@ function renderHome() {
 
   let html = "";
   html += renderSlider("", recommended);
+  html += ad468x60Home;
   html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`, true);
   html += `
     <section class="module">
@@ -298,6 +302,7 @@ function renderHome() {
         <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
       </div>
     </section>`;
+  html += ad160x600Home;
   html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`, true);
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
@@ -634,6 +639,7 @@ function renderDetail(type, slug) {
         </div>
       </div>
       <div class="player-wrap" id="player-${item.slug}"></div>
+      ${ad160x300Detail}
       ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
       ${episodeSection}
       ${directorBlock}
