@@ -1,8 +1,15 @@
-// PelisLatinoHD - Google Ad Manager (GPT) - solo sticky móvil
-// Los banners de red (Adcash) ahora van directos vía aclib.runBanner en js/app.js.
+// PelisLatinoHD - Google Ad Manager (GPT)
+// Escritorio: líder 728x90 (header_728x90) y box 300x250 (sidebar_300x250).
+// Móvil: sticky 320x50 (mobile_320x50). Los banners Adcash van directos vía aclib.
 window.googletag = window.googletag || { cmd: [] };
+var gptDesktop = window.matchMedia("(min-width: 992px)").matches;
 googletag.cmd.push(function () {
   var pubads = googletag.pubads();
+  if (gptDesktop) {
+    googletag.defineSlot("/23205308506/header_728x90", [728, 90], "div-gpt-ad-leader").addService(pubads);
+    googletag.display("div-gpt-ad-leader");
+    googletag.defineSlot("/23205308506/sidebar_300x250", [300, 250], "div-gpt-ad-sidebar").addService(pubads);
+  }
   googletag.defineSlot("/23205308506/mobile_320x50", [320, 50], "div-gpt-ad-mobile").addService(pubads);
   googletag.display("div-gpt-ad-mobile");
   googletag.enableServices();
@@ -13,3 +20,16 @@ googletag.cmd.push(function () {
     }
   });
 });
+
+// El box 300x250 se inyecta en el grid de forma dinámica: cuando aparece en
+// el DOM lo mostramos (display sobre un slot ya mostrado lo refresca).
+(function pollSidebar() {
+  function tryShow() {
+    if (!gptDesktop) return;
+    if (document.getElementById("div-gpt-ad-sidebar")) {
+      googletag.cmd.push(function () { googletag.display("div-gpt-ad-sidebar"); });
+    }
+  }
+  tryShow();
+  setInterval(tryShow, 400);
+})();

@@ -16,7 +16,7 @@ const esc = (s) =>
 
 // ------------- Google Ad Manager (GPT) grid helpers -------------
 const adDirect = (zoneId) => '<script>try{aclib.runBanner({ zoneId: \'' + zoneId + '\' });}catch(e){}</script>';
-const gamBoxHTML = () => '<div class="item ad-in-grid">' + adDirect('12136390') + '</div>';
+const gamBoxHTML = () => '<div class="item ad-in-grid ad-box" id="div-gpt-ad-sidebar"></div>';
 const gamNativeHTML = () => '<div class="item ad-in-grid ad-native">' + adDirect('12136398') + '</div>';
 const adMount = () => {};
 const adDetailHTML = '<div class="ad-slot ad-detail">' + adDirect('12136382') + '</div>';
