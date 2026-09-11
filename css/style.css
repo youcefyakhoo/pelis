@@ -386,6 +386,10 @@ header.main .hbox {
 .item .data span.genres { color: var(--muted); font-size: 12px; display: block; margin-top: 3px; }
 
 /* ---------- Episodes (home module + page) ---------- */
+.ad-fluid { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.ad-fluid-main { flex: 1 1 0; min-width: 280px; }
+.ad-skyscraper { flex: 0 0 auto; }
+.ad-skyscraper .ad-slot { margin: 6px 0 0; }
 .episodes-row {
   display: flex;
   flex-wrap: wrap;

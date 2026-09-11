@@ -297,12 +297,14 @@ function renderHome() {
   html += renderModule("Películas Latino HD", movies.slice(0, HOME_ITEMS), "/peliculas", `<span class="fas fa-film"></span>`, true);
   html += `
     <section class="module">
-      <div class="content">
-        <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="/episodios">Ver todo <span class="fas fa-angle-right"></span></a></header>
-        <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
+      <div class="content ad-fluid">
+        <div class="ad-fluid-main">
+          <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="/episodios">Ver todo <span class="fas fa-angle-right"></span></a></header>
+          <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
+        </div>
+        <aside class="ad-skyscraper">${ad160x600Home}</aside>
       </div>
     </section>`;
-  html += ad160x600Home;
   html += renderModule("Series destacadas", series.slice(0, HOME_ITEMS), "/series", `<span class="fas fa-th-list"></span>`, true);
   html += renderModule("Animes", animeItems.slice(0, HOME_ITEMS), "/animes", `<span class="fas fa-fire"></span>`, true);
   html += renderModule("Superhéroes", superheroItems.slice(0, HOME_ITEMS), "/tag/superhero", `<span class="fas fa-bolt"></span>`, true);
