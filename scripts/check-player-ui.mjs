@@ -11,7 +11,9 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = Number(process.env.PORT || 4311);
-const BASE = `http://127.0.0.1:${PORT}`;
+// PREFIX=/pelis simula el project site de GitHub Pages (sitio bajo subruta).
+const PREFIX = `/${String(process.env.PREFIX || "").replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "");
+const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 
 let jsdomPkg;
 try {
@@ -31,9 +33,14 @@ const MIME = {
 };
 
 const server = createServer(async (req, res) => {
+  const pathname = decodeURIComponent(new URL(req.url, "http://x").pathname);
+  if (PREFIX && !pathname.startsWith(`${PREFIX}/`) && pathname !== PREFIX) {
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("fuera del prefijo");
+    return;
+  }
+  const rel = PREFIX ? pathname.slice(PREFIX.length) || "/" : pathname;
   try {
-    const p = decodeURIComponent(new URL(req.url, "http://x").pathname);
-    let file = join(ROOT, p);
+    let file = join(ROOT, rel);
     const s = await stat(file).catch(() => null);
     if (!s || s.isDirectory()) file = join(file, "index.html");
     const body = await readFile(file);
@@ -48,8 +55,10 @@ await new Promise((r) => server.listen(PORT, "127.0.0.1", r));
 const resources = {
   interceptors: [
     requestInterceptor((request) => {
-      if (new URL(request.url).hostname === "127.0.0.1") return undefined;
-      return new Response("", { status: 204, headers: { "content-type": "text/plain" } });
+      const url = new URL(request.url);
+      if (url.hostname !== "127.0.0.1") return new Response("", { status: 204, headers: { "content-type": "text/plain" } });
+      if (PREFIX && !url.pathname.startsWith(`${PREFIX}/`)) return new Response("", { status: 404 });
+      return undefined;
     }),
   ],
 };
@@ -186,5 +195,9 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
 }
 
 server.close();
-console.log(failures.length ? `\n${failures.length} fallo(s)` : "\nUI: todas las comprobaciones pasaron");
+console.log(
+  failures.length
+    ? `\n${failures.length} fallo(s)`
+    : `\nUI: todas las comprobaciones pasaron${PREFIX ? ` (bajo ${PREFIX}/)` : ""}`
+);
 process.exit(failures.length ? 1 : 0);

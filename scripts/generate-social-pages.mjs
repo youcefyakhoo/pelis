@@ -45,12 +45,9 @@ for (const item of items) {
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">`;
 
-  // index.html ya trae <base href="/">: no duplicarla en las fichas generadas.
-  const withBase = template.includes('<base href="/">')
-    ? template.replace('<base href="/">', `<base href="/">${socialHead}`)
-    : template.replace("<head>", `<head>\n<base href="/">${socialHead}`);
-
-  const page = withBase
+  // index.html ya resuelve la raíz del despliegue con un script propio: aquí
+  // solo se añaden las metas sociales, sin inyectar una segunda <base>.
+  const page = template.replace("<head>", `<head>${socialHead}`)
     .replace(
       /<meta name="description" content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${esc(description)}" />`
@@ -89,12 +86,9 @@ for (const sec of SECTIONS) {
 <meta name="twitter:title" content="${esc(sec.title)} - PelisLatinoHD">
 <meta name="twitter:description" content="${esc(sec.desc)}">
 <meta name="twitter:image" content="${esc(sec.image || `${origin}/social-default.jpg`)}">`;
-  // index.html ya trae <base href="/">: no duplicarla en las fichas generadas.
-  const withBase = template.includes('<base href="/">')
-    ? template.replace('<base href="/">', `<base href="/">${socialHead}`)
-    : template.replace("<head>", `<head>\n<base href="/">${socialHead}`);
-
-  const page = withBase
+  // index.html ya resuelve la raíz del despliegue con un script propio: aquí
+  // solo se añaden las metas sociales, sin inyectar una segunda <base>.
+  const page = template.replace("<head>", `<head>${socialHead}`)
     .replace(
       /<meta name="description" content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${esc(sec.desc)}" />`

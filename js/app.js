@@ -40,10 +40,13 @@ const root = document.getElementById("main-content");
 const header = document.querySelector("header.main");
 
 function getRouteParts() {
+  // Quita el prefijo del despliegue (/pelis/ en GitHub Pages) y las barras.
+  const withoutBase = window.location.pathname.startsWith(SITE_BASE)
+    ? window.location.pathname.slice(SITE_BASE.length)
+    : window.location.pathname.replace(/^\//, "");
   // Admite temporalmente los enlaces antiguos con hash.
   // Cuando todos los enlaces hayan sido migrados, se puede eliminar el fallback.
-  const cleanPath = window.location.pathname
-    .replace(/^\/+|\/+$/g, "");
+  const cleanPath = withoutBase.replace(/^\/+|\/+$/g, "");
 
   if (cleanPath) return cleanPath.split("/").filter(Boolean);
 
@@ -53,8 +56,44 @@ function getRouteParts() {
     .filter(Boolean);
 }
 
+// Raíz del despliegue. En GitHub Pages el sitio vive en /<repo>/, así que las
+// rutas internas se construyen con este prefijo en vez de asumir "/".
+const SITE_BASE = (() => {
+  const base = new URL(".", document.baseURI).pathname || "/";
+  return base.endsWith("/") ? base : `${base}/`;
+})();
+const withBase = (path) => SITE_BASE + String(path ?? "").replace(/^\/+/, "");
+
 function routeUrl(path) {
-  return `/${String(path).replace(/^\/+/, "")}`;
+  return withBase(`/${String(path).replace(/^\/+/, "")}`);
+}
+
+// Convierte un href del DOM en la ruta interna de la SPA ("/peliculas") o null
+// si es externo, un ancla o una ficha estática (esas cargan página completa).
+function internalPath(link) {
+  const raw = link.getAttribute("href") || "";
+  if (!raw || raw.startsWith("#") || raw.startsWith("javascript:")) return null;
+  if (link.target && link.target !== "_self") return null;
+  let url;
+  try {
+    url = new URL(raw, document.baseURI);
+  } catch {
+    return null;
+  }
+  if (url.origin !== location.origin) return null;
+  if (!url.pathname.startsWith(SITE_BASE)) return null;
+  return `/${url.pathname.slice(SITE_BASE.length)}`;
+}
+
+// Reescribe enlaces absolutos heredados (plantillas antiguas con href="/x")
+// para que apunten al prefijo del despliegue.
+function normalizeInternalLinks(scope) {
+  const rootNode = scope || document;
+  rootNode.querySelectorAll('a[href^="/"]').forEach((a) => {
+    const href = a.getAttribute("href");
+    if (!href || href.startsWith("//") || href.startsWith(SITE_BASE)) return;
+    a.setAttribute("href", withBase(href));
+  });
 }
 
 async function loadData() {
@@ -336,17 +375,17 @@ function pagination(total, page, base) {
   if (pages <= 1) return "";
   const p = Math.min(Math.max(1, page), pages);
   const btn = (label, href, cls, disabled) => {
-    const h = href ? `href="${href}"` : "";
+    const h = href ? `href="${withBase(href)}"` : "";
     return `<a class="arrow_pag ${cls || ""} ${disabled ? "disabled" : ""}" ${h}>${label}</a>`;
   };
   let nums = "";
   const start = Math.max(1, p - 2);
   const end = Math.min(pages, p + 2);
-  if (start > 1) { nums += `<a class="inactive" href="${base}/1">1</a>`; if (start > 2) nums += `<span class="dots">...</span>`; }
+  if (start > 1) { nums += `<a class="inactive" href="${withBase(`${base}/1`)}">1</a>`; if (start > 2) nums += `<span class="dots">...</span>`; }
   for (let k = start; k <= end; k++) {
-    nums += k === p ? `<span class="current">${k}</span>` : `<a class="inactive" href="${base}/${k}">${k}</a>`;
+    nums += k === p ? `<span class="current">${k}</span>` : `<a class="inactive" href="${withBase(`${base}/${k}`)}">${k}</a>`;
   }
-  if (end < pages) { if (end < pages - 1) nums += `<span class="dots">...</span>`; nums += `<a class="inactive" href="${base}/${pages}">${pages}</a>`; }
+  if (end < pages) { if (end < pages - 1) nums += `<span class="dots">...</span>`; nums += `<a class="inactive" href="${withBase(`${base}/${pages}`)}">${pages}</a>`; }
   return `
   <div class="pagination">
     <span class="total">Página ${p} de ${pages}</span>
@@ -414,7 +453,7 @@ function renderHome() {
     <section class="module">
       <div class="content ad-fluid">
         <div class="ad-fluid-main">
-          <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="/episodios">Ver todo <span class="fas fa-angle-right"></span></a></header>
+          <header><h2><span class="fas fa-tv"></span> Nuevos Episodios</h2><a class="see-all" href="${withBase("/episodios")}">Ver todo <span class="fas fa-angle-right"></span></a></header>
           <div class="episodes-row" id="recent-episodes">${recentEpisodes.slice(0, 12).map(episodeHomeCard).join("")}</div>
         </div>
         <aside class="ad-skyscraper">${ad160x600Home}</aside>
@@ -452,7 +491,7 @@ function alphaIndex(currentLetter) {
     const active = currentLetter === letter;
     items.push(active
       ? `<li class="active"><span>${letter}</span></li>`
-      : `<li><a href="/peliculas/${letter === "#" ? "#" : letter}">${letter}</a></li>`);
+      : `<li><a href="${withBase(`/peliculas/${letter === "#" ? "#" : letter}`)}">${letter}</a></li>`);
   }
   return `<ul class="glossary">${items.join("")}</ul>`;
 }
@@ -532,7 +571,7 @@ function renderTagByName(slug, pageStr) {
 
 // Type-filter tabs used by genre/country pages (like the original site).
 function typeFilterTabs(base, type) {
-  const t = (label, val) => `<a class="${(!val && !type) || type === val ? "selected" : ""}" href="${base}${val ? `/${val}` : ""}">${esc(label)}</a>`;
+  const t = (label, val) => `<a class="${(!val && !type) || type === val ? "selected" : ""}" href="${withBase(`${base}${val ? `/${val}` : ""}`)}">${esc(label)}</a>`;
   return `<nav class="releases">${t("Añadido recientemente", "")}${t("Películas", "movies")}${t("Series", "tv")}</nav>`;
 }
 
@@ -598,7 +637,7 @@ function updateLegalSEO(kind) {
     }
   };
   const data = seo[kind] || seo.privacidad;
-  const canonical = `${window.location.origin}/${kind}`;
+  const canonical = `${window.location.origin}${withBase(`/${kind}`)}`;
 
   document.title = data.title;
   const setMeta = (selector, attribute, value) => {
@@ -632,7 +671,7 @@ function updateLegalSEO(kind) {
 async function renderLegalPage(kind) {
   const validKinds = ["privacidad", "terminos", "cookies", "contacto"];
   const pageKind = validKinds.includes(kind) ? kind : "privacidad";
-  const url = `/legal/${pageKind}.html`;
+  const url = withBase(`/legal/${pageKind}.html`);
   updateLegalSEO(pageKind);
 
   try {
@@ -649,7 +688,7 @@ async function renderLegalPage(kind) {
         <div class="legal-content">
           <p>No se pudo cargar el contenido de esta página. Inténtalo de nuevo más tarde.</p>
         </div>
-        <a class="back legal-back" href="/">&larr; Volver al inicio</a>
+        <a class="back legal-back" href="${withBase("/")}">&larr; Volver al inicio</a>
       </article>`;
   }
 }
@@ -676,13 +715,13 @@ function renderDetail(type, slug) {
   const genres = (item.genres || [])
     .map((gid) => ({ name: genreName(gid), slug: genreSlug(gid) }))
     .filter((g) => g.name)
-    .map((g) => `<a href="/genero/${encodeURIComponent(g.slug || g.name)}">${esc(g.name)}</a>`)
+    .map((g) => `<a href="${withBase(`/genero/${encodeURIComponent(g.slug || g.name)}`)}">${esc(g.name)}</a>`)
     .join("");
 
   const metaSpans = `
     ${item.year ? `<span>${esc(item.year)}</span>` : ""}
     ${item.runtime ? `<span>${esc(item.runtime)} min</span>` : ""}
-    ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="/pais/${encodeURIComponent(cs)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
+    ${item.country ? (() => { const cs = countrySlugByName(item.country); return `<span>${cs ? `<a href="${withBase(`/pais/${encodeURIComponent(cs)}`)}">${esc(item.country)}</a>` : esc(item.country)}</span>`; })() : ""}
     ${item.rated ? `<span>${esc(item.rated)}</span>` : ""}
     ${item.rating ? `<span class="rate">★ IMDb ${item.rating.toFixed(1)}</span>` : ""}
     ${item.tmdbRating ? `<span class="rate">★ TMDb ${item.tmdbRating.toFixed(1)}</span>` : ""}
@@ -1049,13 +1088,11 @@ document.addEventListener("click", (e) => {
   const link = e.target.closest("a[href]");
   if (!link) return;
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-  const href = link.getAttribute("href") || "";
-  if (!href.startsWith("/") || href.startsWith("//")) return;
-  if (href.startsWith("http") || href.startsWith("javascript:") || href.startsWith("#")) return;
-  if (href.startsWith("/detalle/")) return;
-  if (link.target && link.target !== "_self") return;
+  const path = internalPath(link);
+  if (!path) return;
+  if (path.startsWith("/detalle/")) return;
   e.preventDefault();
-  history.pushState({}, "", href);
+  history.pushState({}, "", withBase(path));
   window.scrollTo(0, 0);
   route();
   highlightNav();
@@ -1070,6 +1107,7 @@ window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   await loadData();
+  normalizeInternalLinks(document);
   buildHeaderMenus();
   route();
   initSearch();
@@ -1093,7 +1131,7 @@ function buildHeaderMenus() {
   const cMenu = document.getElementById("countries-menu");
   if (gMenu) {
     gMenu.innerHTML = (CATALOG.genresList || [])
-      .map((g) => `<li><a href="/genero/${encodeURIComponent(g.slug)}">${esc(g.name)}</a></li>`)
+      .map((g) => `<li><a href="${withBase(`/genero/${encodeURIComponent(g.slug)}`)}">${esc(g.name)}</a></li>`)
       .join("");
   }
   if (cMenu) {
@@ -1102,7 +1140,7 @@ function buildHeaderMenus() {
     cMenu.innerHTML = HEADER_COUNTRIES
       .map((name) => byName[name])
       .filter(Boolean)
-      .map((c) => `<li><a href="/pais/${encodeURIComponent(c.slug)}">${esc(HEADER_COUNTRY_ALIASES[c.name] || c.name)}</a></li>`)
+      .map((c) => `<li><a href="${withBase(`/pais/${encodeURIComponent(c.slug)}`)}">${esc(HEADER_COUNTRY_ALIASES[c.name] || c.name)}</a></li>`)
       .join("");
   }
 }
@@ -1124,7 +1162,7 @@ function initSearch() {
   const doSearch = (q) => {
     q = q.trim().toLowerCase();
     if (!q) {
-      history.pushState({}, "", "/");
+      history.pushState({}, "", withBase("/"));
       route();
       return;
     }

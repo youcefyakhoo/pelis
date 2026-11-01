@@ -50,7 +50,7 @@ node scripts/check-player-sources.mjs   # esquema y resolución de fuentes
 npm install                              # solo para los tests con jsdom
 node scripts/check-routes.mjs            # rutas reales y fallback SPA, sin errores JS
 node scripts/check-player-ui.mjs         # render del panel del reproductor
-npm run check                            # los tres
+npm run check                            # todo, en raíz y bajo /pelis/
 ```
 
 ## Catálogo
@@ -68,6 +68,33 @@ disponibilidad real por plataforma (región `PE` por defecto) al catálogo.
 
 El workflow `.github/workflows/update-catalog.yml` actualiza el catálogo y las
 fichas sociales de forma programática.
+
+## Despliegue y rutas
+
+GitHub Pages sirve este repo como **project site**, así que el sitio vive en
+`https://youcefyakhoo.github.io/pelis/`, no en la raíz del dominio:
+
+| Correcto                                                            | Incorrecto (404)                          |
+| ------------------------------------------------------------------- | ----------------------------------------- |
+| `https://youcefyakhoo.github.io/pelis/`                              | `https://youcefyakhoo.github.io/`          |
+| `https://youcefyakhoo.github.io/pelis/detalle/movie/<slug>/`         | `https://youcefyakhoo.github.io/detalle/movie/<slug>/` |
+
+Cada página deduce la raíz del despliegue con un script en el `<head>`
+(`<base href>`), de modo que los mismos ficheros funcionan tanto en
+`/pelis/` como en un dominio propio en `/`. El router (`js/app.js`) usa el
+mismo prefijo en `routeUrl()`, `pushState()` y los enlaces internos.
+
+GitHub Pages no reescribe rutas: cuando se entra directo a `/pelis/genero/accion`
+(o cualquier ruta del router) el servidor devuelve `404.html`, que es la misma
+shell de la SPA, así que la página se renderiza igual. Alternativa: desplegar en
+un host con rewrites (Cloudflare Pages, Netlify) usando `_redirects`.
+
+Para probar ambos escenarios en local:
+
+```bash
+npm run dev          # http://localhost:8080/
+npm run dev:pages    # http://localhost:8080/pelis/
+```
 
 ## Aviso legal
 

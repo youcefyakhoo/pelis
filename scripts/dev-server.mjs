@@ -2,6 +2,7 @@
 // hosting (rutas como /genero/accion o /tag/anime no tienen fichero propio).
 //
 // Uso: node scripts/dev-server.mjs [puerto]   (por defecto 8080, o $PORT)
+// Prefijo (como GitHub Pages en /pelis/): SERVE_PREFIX=/pelis node scripts/dev-server.mjs
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";
@@ -9,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = Number(process.argv[2] || process.env.PORT || 8080);
+// Prefijo del despliegue: "" en dominio propio, "/pelis" en GitHub Pages.
+const PREFIX = `/${String(process.env.SERVE_PREFIX || "").replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -29,8 +32,13 @@ const MIME = {
 
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+  if (PREFIX && !pathname.startsWith(`${PREFIX}/`) && pathname !== PREFIX) {
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("Fuera del prefijo del sitio");
+    return;
+  }
+  const trimmed = PREFIX ? pathname.slice(PREFIX.length) || "/" : pathname;
   // evita salir del directorio del proyecto
-  const safe = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
+  const safe = normalize(trimmed).replace(/^(\.\.[/\\])+/, "");
   try {
     let file = join(ROOT, safe);
     const info = await stat(file).catch(() => null);
@@ -45,5 +53,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Pelis en http://localhost:${PORT} (fallback SPA activo)`);
+  console.log(`Pelis en http://localhost:${PORT}${PREFIX}/ (fallback SPA activo)`);
 });
