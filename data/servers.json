@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "updated": "2026-11-01",
+  "notice": "Fuentes del reproductor. Solo se permiten enlaces a servicios oficiales (tráiler, ficha, plataformas de streaming) o embeds de contenido propio/licenciado. Este sitio no aloja ni transmite vídeo.",
+  "sources": [
+    {
+      "id": "propio",
+      "name": "Mi catálogo licenciado",
+      "kind": "embed",
+      "enabled": false,
+      "order": 1,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://stream.ejemplo.com/embed/{media}/{tmdb}",
+      "episodeUrl": "https://stream.ejemplo.com/embed/{media}/{tmdb}?temporada={season}&episodio={episode}"
+    },
+    {
+      "id": "trailer-embed",
+      "name": "Tráiler",
+      "kind": "embed",
+      "order": 5,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.youtube-nocookie.com/embed/{trailerKey}?rel=0&hl=es&modestbranding=1&color=white"
+    },
+    {
+      "id": "trailer",
+      "name": "Buscar tráiler en YouTube",
+      "kind": "link",
+      "icon": "▶",
+      "primary": true,
+      "order": 10,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.youtube.com/results?search_query={query}%20tr%C3%A1iler%20espa%C3%B1ol"
+    },
+    {
+      "id": "justwatch",
+      "name": "Dónde verlo (JustWatch)",
+      "kind": "link",
+      "order": 20,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.justwatch.com/es/buscar?q={query}"
+    },
+    {
+      "id": "tmdb",
+      "name": "Ficha en TMDB",
+      "kind": "link",
+      "order": 30,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.themoviedb.org/{media}/{tmdb}"
+    },
+    {
+      "id": "imdb",
+      "name": "Ficha en IMDb",
+      "kind": "link",
+      "order": 40,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.imdb.com/title/{imdb}/"
+    }
+  ],
+  "providers": [
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "url": "https://www.netflix.com/search?q={query}"
+    },
+    {
+      "id": "prime-video",
+      "name": "Prime Video",
+      "url": "https://www.primevideo.com/search/ref=atv_nb_sr?phrase={query}"
+    },
+    {
+      "id": "disney-plus",
+      "name": "Disney+",
+      "url": "https://www.disneyplus.com/es-419/search?q={query}"
+    },
+    {
+      "id": "max",
+      "name": "Max",
+      "url": "https://play.max.com/search?q={query}"
+    },
+    {
+      "id": "apple-tv",
+      "name": "Apple TV",
+      "url": "https://tv.apple.com/search?term={query}"
+    },
+    {
+      "id": "paramount-plus",
+      "name": "Paramount+",
+      "url": "https://www.paramountplus.com/search/?q={query}"
+    },
+    {
+      "id": "crunchyroll",
+      "name": "Crunchyroll",
+      "url": "https://www.crunchyroll.com/search?q={query}"
+    }
+  ],
+  "tmdb": {
+    "enrich": "scripts/enrich-tmdb.mjs",
+    "region": "PE",
+    "language": "es-ES"
+  }
+}

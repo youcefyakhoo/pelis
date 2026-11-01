@@ -1,0 +1,21 @@
+{
+  "name": "pelis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Catálogo estático de películas y series con fuentes de reproducción legales y configurables",
+  "scripts": {
+    "check:player": "node scripts/check-player-sources.mjs",
+    "check:ui": "node scripts/check-player-ui.mjs",
+    "scrape": "node scraper/scrape.mjs",
+    "update": "node scraper/update.mjs",
+    "enrich": "node scripts/enrich-tmdb.mjs",
+    "check:routes": "node scripts/check-routes.mjs",
+    "check": "npm run -s check:player && npm run -s check:routes && npm run -s check:ui && npm run -s check:pages",
+    "dev": "node scripts/dev-server.mjs",
+    "check:pages": "PREFIX=/pelis FALLBACK=404 node scripts/check-routes.mjs && PREFIX=/pelis node scripts/check-player-ui.mjs",
+    "dev:pages": "SERVE_PREFIX=/pelis node scripts/dev-server.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<base href="/">
 <meta property="og:type" content="video.movie">
 <meta property="og:site_name" content="PelisLatinoHD">
 <meta property="og:title" content="Amame o déjame">
@@ -12,6 +11,30 @@
 <meta name="twitter:title" content="Amame o déjame">
 <meta name="twitter:description" content="Basada en la vida de la cantante Ruth Etting, sobre todo en su tomentoso matrimonio. Ruth lo tenía todo: una voz privilegiada, belleza y encanto, pero su relación amorosa con el gángster Martin Snyder, aunque la ayuda a alcanzar la fama, t…">
 <meta name="twitter:image" content="https://image.tmdb.org/t/p/w780/l4hnzWUc7Xmx4H9A4cYrBaoUcN1.jpg">
+<!-- Raíz del despliegue: "/" en dominio propio y "/pelis/" en GitHub Pages
+     (project site). Se deduce del primer segmento conocido de la ruta y se
+     aplica antes de pedir CSS/JS, de modo que los assets resuelvan en ambos
+     despliegues. Debe ejecutarse antes de cualquier recurso. -->
+<script>
+(function () {
+  var ROUTE = /^(detalle|peliculas|series|episodios|genero|pais|tag|animes|tendencias|imdb|home|privacidad|terminos|cookies|contacto|legal|css|js|data|index\.html)$/i;
+  var parts = location.pathname.split("/").filter(Boolean);
+  var root = null;
+  for (var i = 0; i < parts.length; i++) {
+    if (ROUTE.test(parts[i])) {
+      root = i ? "/" + parts.slice(0, i).join("/") + "/" : "/";
+      break;
+    }
+  }
+  if (!root) {
+    if (!parts.length) root = "/";
+    else if (parts.length === 1) root = "/" + parts[0] + "/";          // raíz de un despliegue en subruta
+    else if (/\.github\.io$/i.test(location.hostname)) root = "/" + parts[0] + "/"; // URL inventada en Pages
+    else root = "/";
+  }
+  document.write('<base href="' + root + '">');
+})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 <meta name="description" content="Basada en la vida de la cantante Ruth Etting, sobre todo en su tomentoso matrimonio. Ruth lo tenía todo: una voz privilegiada, belleza y encanto, pero su relación amorosa con el gángster Martin Snyder, aunque la ayuda a alcanzar la fama, t…" />
@@ -33,20 +56,20 @@
     <div class="hbox">
       <div class="mob-bars" id="mob-bars" aria-label="Menú"><span></span><span></span><span></span></div>
       <div class="logo">
-        <a href="/"><h1 class="text">Pelis<span class="hl">Latino</span>HD</h1></a>
+        <a href="./"><h1 class="text">Pelis<span class="hl">Latino</span>HD</h1></a>
       </div>
       <div class="head-main-nav">
         <ul class="main-header">
           <li class="search-mob"><form id="searchform-mob"><input type="text" id="s-mob" placeholder="Buscar..." /><button type="submit" class="search-button"><span class="fas fa-search"></span></button></form></li>
-          <li><a href="/tendencias">Tendencias</a></li>
-          <li><a href="/peliculas" data-route="peliculas">Películas</a></li>
+          <li><a href="tendencias">Tendencias</a></li>
+          <li><a href="peliculas" data-route="peliculas">Películas</a></li>
           <li class="has-sub">
-            <a href="/series" data-route="series">Series <span class="caret">&#9662;</span></a>
+            <a href="series" data-route="series">Series <span class="caret">&#9662;</span></a>
             <ul class="sub-menu">
-              <li><a href="/series">Temporadas</a></li>
+              <li><a href="series">Temporadas</a></li>
             </ul>
           </li>
-          <li><a href="/animes">Animes</a></li>
+          <li><a href="animes">Animes</a></li>
           <li class="has-sub">
             <a href="javascript:void(0)">Géneros <span class="caret">&#9662;</span></a>
             <ul class="sub-menu" id="genres-menu"></ul>
@@ -55,7 +78,7 @@
             <a href="javascript:void(0)">País <span class="caret">&#9662;</span></a>
             <ul class="sub-menu" id="countries-menu"></ul>
           </li>
-          <li><a href="/episodios">Episodios</a></li>
+          <li><a href="episodios">Episodios</a></li>
         </ul>
       </div>
       <div class="search">
