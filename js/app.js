@@ -108,6 +108,7 @@ function playerValues(ctx) {
     slug: enc(c.slug),
     season: enc(c.season),
     episode: enc(c.episode),
+    trailerKey: enc(c.trailerKey),
     episodeLabel: enc(c.season && c.episode ? `T${text(c.season)}E${text(c.episode)}` : ""),
   };
 }
@@ -798,6 +799,41 @@ function ctxFromEl(node) {
   };
 }
 
+const PROVIDER_TYPE_LABEL = { flatrate: "Suscripción", free: "Gratis", ads: "Con anuncios", rent: "Alquiler", buy: "Compra" };
+
+// "Dónde verlo": real availability from TMDB when the catalog was enriched,
+// otherwise the generic per-platform search links from data/servers.json.
+function providersBlock(ctx, resolved) {
+  const real = Array.isArray(ctx.providers) ? ctx.providers : [];
+  if (real.length) {
+    const fallbackSearch = (id) => {
+      const hit = (resolved.providers || []).find((p) => p.id === id);
+      return hit ? hit.url : "";
+    };
+    const chips = real.slice(0, 8).map((p) => {
+      const url = ctx.providerLink || fallbackSearch(p.id);
+      if (!url) return "";
+      const type = PROVIDER_TYPE_LABEL[p.type] ? `<span class="pp-provider-type">${esc(PROVIDER_TYPE_LABEL[p.type])}</span>` : "";
+      const logo = p.logo ? `<img src="${esc(p.logo)}" alt="" loading="lazy" width="18" height="18"/>` : "";
+      return `<a class="pp-provider pp-provider-real" href="${esc(url)}" target="_blank" rel="noopener noreferrer nofollow">${logo}<span>${esc(p.name)}</span>${type}</a>`;
+    }).join("");
+    if (!chips) return "";
+    return `
+      <div class="pp-providers">
+        <span class="pp-label">Dónde verlo${ctx.providersRegion ? ` (${esc(ctx.providersRegion)})` : ""}</span>
+        <div class="pp-provider-btns">${chips}</div>
+      </div>`;
+  }
+  if (!resolved.providers.length) return "";
+  return `
+      <div class="pp-providers">
+        <span class="pp-label">Buscar en plataformas</span>
+        <div class="pp-provider-btns">
+          ${resolved.providers.map((p) => `<a class="pp-provider" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(p.name)}</a>`).join("")}
+        </div>
+      </div>`;
+}
+
 // Player slot: lists official/legal sources. Only embeds content when the
 // configured source is an embed (own or licensed catalogue).
 function playerPanelHTML(ctx, resolved) {
@@ -817,15 +853,7 @@ function playerPanelHTML(ctx, resolved) {
       <a class="pp-btn${s.primary ? " pp-primary" : ""}" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer nofollow">
         ${s.icon ? `<span class="pp-ico">${esc(s.icon)}</span>` : ""}<span>${esc(s.name)}</span>
       </a>`).join("");
-  const providers = resolved.providers.length
-    ? `
-      <div class="pp-providers">
-        <span class="pp-label">Disponible en</span>
-        <div class="pp-provider-btns">
-          ${resolved.providers.map((p) => `<a class="pp-provider" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(p.name)}</a>`).join("")}
-        </div>
-      </div>`
-    : "";
+  const providers = providersBlock(ctx, resolved);
 
   return `
     <div class="pp">
@@ -871,6 +899,7 @@ async function showPlayerPanel(wrapId, ctx) {
     if (head && head.parentElement) head.after(wrap);
     else root.insertBefore(wrap, root.firstChild);
   }
+  ctx = { ...ctx, ...extrasFor(ctx) };
   wrap.classList.add("active", "panel-mode");
   wrap.innerHTML = `<div class="pp-loading">Cargando opciones…</div>`;
   const config = await loadServers();
@@ -894,6 +923,20 @@ function openEpisodeFromHash(item) {
   showPlayerPanel(`player-${item.slug}`, { ...ctxFromItem(item), season: ep.season, episode: ep.episode });
 }
 
+// Extra data stored in the catalog by scripts/enrich-tmdb.mjs
+// (trailerKey / providers / providerLink). Empty when not enriched yet.
+function extrasFor(ctx) {
+  const list = ctx.type === "series" ? CATALOG.series : CATALOG.movies;
+  const item = (list || []).find((x) => x.slug === ctx.slug);
+  if (!item) return {};
+  return {
+    trailerKey: item.trailerKey || "",
+    trailerName: item.trailerName || "",
+    providers: Array.isArray(item.providers) ? item.providers : [],
+    providerLink: item.providerLink || "",
+  };
+}
+
 function ctxFromItem(item) {
   return {
     type: item.type,
@@ -902,6 +945,9 @@ function ctxFromItem(item) {
     tmdb: tmdbId(item),
     imdb: imdbId(item),
     slug: item.slug,
+    trailerKey: item.trailerKey || "",
+    providers: Array.isArray(item.providers) ? item.providers : [],
+    providerLink: item.providerLink || "",
   };
 }
 

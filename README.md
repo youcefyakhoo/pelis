@@ -27,6 +27,7 @@ admite un `embed` propio si distribuyes contenido con derechos.
 
 - Esquema y marcadores: [`PLAYER.md`](PLAYER.md)
 - Cambiar o añadir fuentes: edita `data/servers.json` (no hace falta recompilar)
+- Tráiler y disponibilidad reales: `node scripts/enrich-tmdb.mjs` (TMDB)
 
 ## Desarrollo
 
@@ -50,8 +51,13 @@ node scripts/check-player-ui.mjs         # render del panel con jsdom
 ```bash
 node scraper/scrape.mjs    # reconstrucción completa -> data/catalog.json
 node scraper/update.mjs    # sólo novedades (lo ejecuta GitHub Actions cada 6 h)
+node scripts/enrich-tmdb.mjs             # tráiler y plataformas (requiere TMDB_API_KEY)
 node scripts/generate-social-pages.mjs   # fichas con Open Graph
 ```
+
+`enrich-tmdb` es opcional: sin credenciales termina sin cambios. Con el secreto
+`TMDB_API_KEY` configurado, el workflow añade tráiler oficial de YouTube y la
+disponibilidad real por plataforma (región `PE` por defecto) al catálogo.
 
 El workflow `.github/workflows/update-catalog.yml` actualiza el catálogo y las
 fichas sociales de forma programática.

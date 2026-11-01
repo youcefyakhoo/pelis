@@ -9,18 +9,35 @@
       "kind": "embed",
       "enabled": false,
       "order": 1,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://stream.ejemplo.com/embed/{media}/{tmdb}",
       "episodeUrl": "https://stream.ejemplo.com/embed/{media}/{tmdb}?temporada={season}&episodio={episode}"
     },
     {
+      "id": "trailer-embed",
+      "name": "Tráiler",
+      "kind": "embed",
+      "order": 5,
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://www.youtube-nocookie.com/embed/{trailerKey}?rel=0&hl=es&modestbranding=1&color=white"
+    },
+    {
       "id": "trailer",
-      "name": "Tráiler oficial",
+      "name": "Buscar tráiler en YouTube",
       "kind": "link",
       "icon": "▶",
       "primary": true,
       "order": 10,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.youtube.com/results?search_query={query}%20tr%C3%A1iler%20espa%C3%B1ol"
     },
     {
@@ -28,7 +45,10 @@
       "name": "Dónde verlo (JustWatch)",
       "kind": "link",
       "order": 20,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.justwatch.com/es/buscar?q={query}"
     },
     {
@@ -36,7 +56,10 @@
       "name": "Ficha en TMDB",
       "kind": "link",
       "order": 30,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.themoviedb.org/{media}/{tmdb}"
     },
     {
@@ -44,7 +67,10 @@
       "name": "Ficha en IMDb",
       "kind": "link",
       "order": 40,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.imdb.com/title/{imdb}/"
     }
   ],
@@ -84,5 +110,10 @@
       "name": "Crunchyroll",
       "url": "https://www.crunchyroll.com/search?q={query}"
     }
-  ]
+  ],
+  "tmdb": {
+    "enrich": "scripts/enrich-tmdb.mjs",
+    "region": "PE",
+    "language": "es-ES"
+  }
 }

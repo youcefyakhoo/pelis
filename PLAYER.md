@@ -94,6 +94,46 @@ Si tu reproductor necesita un token, genera la URL desde tu backend y expón un
 endpoint que devuelva el `servers.json` ya firmado; el cliente solo consume
 plantillas.
 
+## Tráiler oficial y disponibilidad (TMDB)
+
+`scripts/enrich-tmdb.mjs` añade al catálogo datos reales de TMDB:
+
+| Campo                         | Contenido                                              |
+| ----------------------------- | ------------------------------------------------------ |
+| `trailerKey`                  | id del tráiler oficial en YouTube                      |
+| `trailerName`, `trailerLang`  | título e idioma del vídeo elegido                      |
+| `providers`                   | plataformas oficiales del país (`id`, `name`, `type`, `logo`) |
+| `providersRegion`             | país usado (`PE` por defecto)                          |
+| `providerLink`                | página "dónde verlo" de TMDB                           |
+
+El panel usa `trailerKey` para incrustar el tráiler desde
+`https://www.youtube-nocookie.com/embed/…` (fuente `trailer-embed` de
+`data/servers.json`, que se descarta sola si el título no tiene tráiler) y
+muestra las plataformas reales en *Dónde verlo*. Sin datos de TMDB se mantienen
+los enlaces de búsqueda genéricos.
+
+```bash
+# local
+TMDB_API_KEY=tu_clave node scripts/enrich-tmdb.mjs --limit 20
+
+# sólo lo que aún no tiene tráiler, simulando sin escribir
+TMDB_TOKEN=tu_token node scripts/enrich-tmdb.mjs --only-missing --dry-run
+
+```
+
+Variables: `TMDB_API_KEY` (v3) o `TMDB_TOKEN` (v4), `TMDB_REGION` (por defecto
+`PE`), `TMDB_LANG` (`es-ES`), `TMDB_BASE`, `TMDB_CONCURRENCY` (8),
+`TMDB_TIMEOUT_MS`. Argumentos: `--catalog`, `--limit`, `--only-missing`,
+`--concurrency`, `--dry-run`.
+
+En CI basta con crear el secreto `TMDB_API_KEY` (o `TMDB_TOKEN`) en el
+repositorio: el workflow `update-catalog` ejecuta el enriquecimiento y salta el
+paso si el secreto no existe. Sin credenciales el script termina sin tocar nada.
+
+> TMDB no ofrece disponibilidad inventada: si un título no está en ninguna
+> plataforma del país, `providers` queda vacío y se muestran los enlaces de
+> búsqueda. Cambia `TMDB_REGION` si tu público no es de Perú.
+
 ## Validar cambios
 
 ```bash

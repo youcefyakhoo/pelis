@@ -22,10 +22,12 @@ try {
 }
 const { JSDOM, VirtualConsole, requestInterceptor } = jsdomPkg;
 
+// charset explícito: jsdom, a diferencia del navegador, no adivina UTF-8
 const MIME = {
-  ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
-  ".css": "text/css", ".json": "application/json", ".png": "image/png",
-  ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".txt": "text/plain",
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8", ".png": "image/png",
+  ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".txt": "text/plain; charset=utf-8",
 };
 
 const server = createServer(async (req, res) => {
@@ -115,6 +117,29 @@ const movieItem = catalog.movies.find((m) => m.slug === "007-al-servicio-secreto
   check("película: aviso legal", /no aloja ni transmite/i.test(doc.querySelector(".pp-note")?.textContent || ""));
   click(dom, doc.querySelector(".pp-close"));
   check("película: el panel se cierra", !doc.querySelector(".pp"));
+
+  // título enriquecido por scripts/enrich-tmdb.mjs: tráiler incrustado + plataformas
+  dom.window.eval(`
+    (() => {
+      const item = CATALOG.movies.find((m) => m.slug === "007-al-servicio-secreto-de-su-majestad");
+      item.trailerKey = "dQw4w9WgXcQ";
+      item.providersRegion = "PE";
+      item.providerLink = "https://www.themoviedb.org/movie/668/watch?locale=PE";
+      item.providers = [
+        { id: "8", name: "Netflix", type: "flatrate", logo: null },
+        { id: "2", name: "Apple TV", type: "rent", logo: null },
+      ];
+    })()
+  `);
+  click(dom, btn);
+  await waitFor(dom, ".pp");
+  const frame = doc.querySelector(".pp-frame iframe");
+  check("enriquecido: tráiler en iframe", frame?.getAttribute("src")?.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), frame?.getAttribute("src"));
+  check("enriquecido: un solo embed, sin pestañas", !doc.querySelector(".pp-tabs"));
+  const realProviders = [...doc.querySelectorAll(".pp-provider-real")];
+  check("enriquecido: plataformas oficiales", realProviders.length === 2, String(realProviders.length));
+  check("enriquecido: enlace de disponibilidad", realProviders[0]?.getAttribute("href") === "https://www.themoviedb.org/movie/668/watch?locale=PE", realProviders[0]?.getAttribute("href"));
+  check("enriquecido: tipo de plataforma", /Suscripción/.test(realProviders[0]?.textContent || ""), realProviders[0]?.textContent);
   dom.window.close();
 }
 

@@ -7,7 +7,8 @@
     "check:player": "node scripts/check-player-sources.mjs",
     "check:ui": "node scripts/check-player-ui.mjs",
     "scrape": "node scraper/scrape.mjs",
-    "update": "node scraper/update.mjs"
+    "update": "node scraper/update.mjs",
+    "enrich": "node scripts/enrich-tmdb.mjs"
   },
   "devDependencies": {
     "jsdom": "^30.1.3"

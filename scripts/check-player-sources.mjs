@@ -69,6 +69,26 @@ check("película: JustWatch", byId(movie.links).justwatch?.url.startsWith("https
 check("película: proveedores oficiales", movie.providers.length === config.providers.length);
 check("película: sin fuente deshabilitada", !movie.embeds.some((e) => e.id === "propio"));
 
+// ---- 3b. tráiler oficial incrustado ---------------------------------------
+const trailerSrc = (config.sources || []).find((x) => x.id === "trailer-embed");
+check("config: fuente de tráiler embed", trailerSrc?.kind === "embed" && trailerSrc.url.includes("{trailerKey}"));
+
+const withTrailer = resolvePlayerSources(config, {
+  type: "movie",
+  title: "El padrino",
+  year: 1972,
+  tmdb: "238",
+  imdb: "tt0068646",
+  trailerKey: "dQw4w9WgXcQ",
+});
+check("tráiler: iframe de youtube-nocookie", withTrailer.embeds[0]?.url.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), withTrailer.embeds[0]?.url);
+check("tráiler: sin clave no se incrusta nada", movie.embeds.length === 0);
+
+const trailerEp = resolvePlayerSources(config, {
+  type: "series", title: "Siren", tmdb: "71886", trailerKey: "abc123", season: "1", episode: "2",
+});
+check("tráiler: disponible también en episodios", trailerEp.embeds[0]?.url.includes("abc123"));
+
 // ---- 4. serie y episodio ---------------------------------------------------
 const series = resolvePlayerSources(config, {
   type: "series",
