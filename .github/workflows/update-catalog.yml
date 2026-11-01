@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Validate player sources
+        run: node scripts/check-player-sources.mjs
+
       - name: Run incremental updater
         run: node scraper/update.mjs
 

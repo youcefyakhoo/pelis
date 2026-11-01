@@ -66,13 +66,9 @@ function backdropUrl(p) {
   const clean = p.startsWith("/") ? p : `/${p}`;
   return `${IMG}/w780${clean}`;
 }
-function embedUrl(id) {
-  const clean = String(id || "").trim();
-  return clean ? `https://playpaste.link/player/embed.php?id=${encodeURIComponent(clean)}` : null;
-}
-function embedUrlEp(id, se, ep) {
-  return `https://playpaste.link/player/embed.php?id=${encodeURIComponent(String(id))}&se=${encodeURIComponent(String(se))}&ep=${encodeURIComponent(String(ep))}`;
-}
+// El catálogo solo guarda identificadores (TMDB / IMDb). Las URLs de
+// reproducción viven en data/servers.json y se resuelven en el navegador,
+// de modo que el scraper nunca escribe hosts de vídeo en el catálogo.
 
 // Synopsis from WP post content: the real text lives in `content.rendered`
 // (the REST `excerpt` is empty). Return the first paragraph, stripping any
@@ -200,8 +196,9 @@ function mapMovie(m, meta) {
   const metaObj = m.meta || {};
   const genres = (m.genres || []).map((g) => (typeof g === "object" ? g.id : g));
   const countryIds = (Array.isArray(m.dtcountry) ? m.dtcountry : []).map((c) => (typeof c === "object" ? c.id : c));
-  const tmdb = gallery(metaObj.idtmdb) || gallery(metaObj.idtmbd);
-  const embeddedId = gallery(metaObj.ids) || tmdb || m.id;
+  const externalId = gallery(metaObj.ids) || null;
+  const tmdb = gallery(metaObj.idtmdb) || gallery(metaObj.idtmbd) ||
+    (/^\d+$/.test(String(externalId || "")) ? String(externalId) : null);
   return {
     id: m.id,
     type: "movie",
@@ -219,7 +216,7 @@ function mapMovie(m, meta) {
     rated: one(metaObj.Rated) || null,
     runtime: firstNum(metaObj.runtime),
     tmdb,
-    embeddedId,
+    externalId,
     genres,
     countries: countryIds,
     country: countryName(countryIds[0]) || null,
@@ -237,7 +234,9 @@ function mapSeries(s, meta) {
   const metaObj = s.meta || {};
   const genres = (s.genres || []).map((g) => (typeof g === "object" ? g.id : g));
   const countryIds = (Array.isArray(s.dtcountry) ? s.dtcountry : []).map((c) => (typeof c === "object" ? c.id : c));
-  const tmdb = gallery(metaObj.idtmdb) || gallery(metaObj.idtmbd);
+  const externalId = gallery(metaObj.ids) || null;
+  const tmdb = gallery(metaObj.idtmdb) || gallery(metaObj.idtmbd) ||
+    (/^\d+$/.test(String(externalId || "")) ? String(externalId) : null);
   return {
     id: s.id,
     type: "series",
@@ -254,7 +253,7 @@ function mapSeries(s, meta) {
     tmdbVotes: firstNum(metaObj.vote_count),
     rated: one(metaObj.Rated) || null,
     tmdb,
-    embeddedId: gallery(metaObj.ids) || tmdb || s.id,
+    externalId,
     genres,
     countries: countryIds,
     country: countryName(countryIds[0]) || null,
@@ -335,7 +334,6 @@ async function scrapeEpisodesForShow(show) {
     return [];
   }
 
-  const baseId = show.embeddedId || show.tmdb || show.id;
   const out = [];
   // each season block
   const seasonRe = /<div class='se-c'>([\s\S]*?)<\/div>\s*<\/div>/g;
@@ -355,11 +353,10 @@ async function scrapeEpisodesForShow(show) {
       const title = (titleMatch ? titleMatch[1] : em[2]).replace(/<[^>]+>/g, "").trim();
       const date = titleMatch && titleMatch[2] ? titleMatch[2].trim() : null;
       out.push({
-        id: String(baseId),
+        id: String(show.id),
         season,
         episode: String(num),
         title: title || `Episodio ${num}`,
-        embedded: embedUrlEp(baseId, season, num),
         date,
       });
     }
@@ -384,14 +381,12 @@ async function scrapeRecentEpisodes() {
       const metaObj = ep.meta || {};
       const se = String(one(metaObj.temporada) ?? "1");
       const num = String(one(metaObj.episodio) ?? "");
-      const id = one(metaObj.ids) || one(metaObj.idtmdb);
       const serie = String(one(metaObj.serie) || "");
       out.push({
         title: String(one(metaObj.episode_name) || (ep.title && ep.title.rendered) || `Episodio ${num}`),
         serie,
         season: se,
         episode: num,
-        embedded: embedUrlEp(id, se, num),
         date: ep.date || null,
         slug: ep.slug || null,
       });
@@ -434,8 +429,6 @@ export {
   firstNum,
   posterUrl,
   backdropUrl,
-  embedUrl,
-  embedUrlEp,
   cleanSynopsis,
   parsePeople,
   decodeEntities,

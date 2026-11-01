@@ -1,6 +1,6 @@
-// PelisLatinoHD clone - static SPA (hash router)
-// Replicates the real site: home slider + modules, paginated listings,
-// genre/country/tag pages, series episodes, inline players, responsive menus.
+// PelisLatinoHD clone - static SPA (history router)
+// Home slider + modules, paginated listings, genre/country/tag pages, series
+// episodes and a player panel whose sources come from data/servers.json.
 
 const PER_PAGE = 28;              // items per listing page (grid)
 const HOME_ITEMS = 14;            // per home module
@@ -68,6 +68,120 @@ async function loadData() {
   }
 }
 
+// ------------- Player sources (data/servers.json) -------------
+// El reproductor no lleva ningún host incrustado: las opciones se resuelven en
+// tiempo de ejecución desde data/servers.json. Admite enlaces a servicios
+// oficiales (tráiler, fichas, plataformas) y embeds de contenido propio o
+// licenciado. Ver PLAYER.md para el esquema y los marcadores disponibles.
+const SERVERS_URL = "data/servers.json";
+const PLAYER_FALLBACK_CONFIG = {
+  sources: [{
+    id: "trailer",
+    name: "Tráiler oficial",
+    kind: "link",
+    icon: "▶",
+    primary: true,
+    order: 10,
+    url: "https://www.youtube.com/results?search_query={query}%20tr%C3%A1iler%20espa%C3%B1ol",
+  }],
+  providers: [],
+};
+let SERVERS = null;
+let SERVERS_PROMISE = null;
+
+// [player-sources:start]
+// Funciones puras (sin DOM); también las usa scripts/check-player-sources.mjs.
+function playerValues(ctx) {
+  const c = ctx || {};
+  const text = (v) => String(v == null ? "" : v).trim();
+  const enc = (v) => encodeURIComponent(text(v));
+  const type = text(c.type) === "series" ? "series" : "movie";
+  const query = enc([text(c.title), text(c.year)].filter(Boolean).join(" ")).replace(/%20/g, "+");
+  return {
+    type: enc(type),
+    media: enc(type === "series" ? "tv" : "movie"),
+    title: enc(c.title),
+    query,
+    year: enc(c.year),
+    tmdb: enc(c.tmdb),
+    imdb: enc(c.imdb),
+    slug: enc(c.slug),
+    season: enc(c.season),
+    episode: enc(c.episode),
+    episodeLabel: enc(c.season && c.episode ? `T${text(c.season)}E${text(c.episode)}` : ""),
+  };
+}
+
+function playerFill(template, values) {
+  if (!template) return null;
+  let missing = false;
+  const out = String(template).replace(/\{([a-zA-Z]+)\}/g, (m, key) => {
+    const val = values[key];
+    if (!val) { missing = true; return ""; }
+    return val;
+  });
+  return missing ? null : out;
+}
+
+function resolvePlayerSources(config, ctx) {
+  const cfg = config || {};
+  const type = ctx && ctx.type === "series" ? "series" : "movie";
+  const values = playerValues(ctx);
+  const isEpisode = Boolean(values.season && values.episode);
+  const result = { embeds: [], links: [], providers: [] };
+  const byOrder = (a, b) => a.order - b.order;
+
+  for (const src of cfg.sources || []) {
+    if (!src || src.enabled === false) continue;
+    const applies = Array.isArray(src.appliesTo) && src.appliesTo.length ? src.appliesTo : ["movie", "series"];
+    if (!applies.includes(type)) continue;
+    const template = isEpisode && src.episodeUrl ? src.episodeUrl : src.url;
+    const url = playerFill(template, values);
+    if (!url) continue;
+    const entry = {
+      id: src.id,
+      name: src.name || src.id,
+      icon: src.icon || "",
+      url,
+      primary: Boolean(src.primary),
+      order: Number(src.order) || 100,
+    };
+    (src.kind === "embed" ? result.embeds : result.links).push(entry);
+  }
+
+  for (const p of cfg.providers || []) {
+    if (!p || p.enabled === false) continue;
+    const url = playerFill(p.url, values);
+    if (url) result.providers.push({ id: p.id, name: p.name || p.id, url, order: Number(p.order) || 100 });
+  }
+
+  result.embeds.sort(byOrder);
+  result.links.sort(byOrder);
+  result.providers.sort(byOrder);
+  return result;
+}
+// [player-sources:end]
+
+async function loadServers() {
+  if (SERVERS) return SERVERS;
+  if (!SERVERS_PROMISE) {
+    SERVERS_PROMISE = (async () => {
+      try {
+        const res = await fetch(SERVERS_URL, { cache: "no-cache" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const cfg = await res.json();
+        if (!cfg || !Array.isArray(cfg.sources)) throw new Error("formato inválido");
+        SERVERS = { sources: cfg.sources, providers: Array.isArray(cfg.providers) ? cfg.providers : [] };
+      } catch (e) {
+        console.warn(`[player] no se pudo cargar ${SERVERS_URL}; usando solo el tráiler`, e);
+        SERVERS = PLAYER_FALLBACK_CONFIG;
+      }
+      return SERVERS;
+    })();
+  }
+  return SERVERS_PROMISE;
+}
+
 // ------------- helpers -------------
 const allItems = () => [...CATALOG.movies, ...CATALOG.series];
 const genreName = (id) => CATALOG.genres[id] || "";
@@ -129,19 +243,19 @@ function card(item) {
 }
 
 function episodeHomeCard(ep) {
-  // find the serie to link detail
+  // find the serie to link detail (the hash opens the episode panel there)
   const serie = CATALOG.series.find((s) => s.title.toLowerCase() === String(ep.serie || "").toLowerCase());
-  const href = serie
-    ? routeUrl(`detalle/series/${serie.slug}/`)
-    : routeUrl("episodios/");
   const label = `T${ep.season} E${ep.episode}`;
+  const href = serie
+    ? routeUrl(`detalle/series/${serie.slug}/#t${ep.season}e${ep.episode}`)
+    : routeUrl("episodios/");
   const poster = serie ? serie.poster : null;
   return `
-  <div class="episode-card" data-src="${esc(ep.embedded)}" data-name="${esc(ep.serie)} - ${label}">
-    ${poster ? `<img src="${esc(poster)}" alt="" style="width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : ""}
+  <a class="episode-card" href="${esc(href)}">
+    ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy" style="width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : ""}
     <div class="ep-title">${esc(ep.serie)}</div>
     <div class="ep-meta">${esc(ep.title)} &middot; <b>${label}</b></div>
-  </div>`;
+  </a>`;
 }
 
 function renderModule(title, items, link, icon, ads) {
@@ -312,16 +426,7 @@ function renderHome() {
 
   root.innerHTML = html;
   initSlider();
-  bindRecentEpisodes();
   adMount();
-}
-
-function bindRecentEpisodes() {
-  root.querySelectorAll(".episode-card[data-src]").forEach((card) => {
-    card.addEventListener("click", () => {
-      openPlayer(card.dataset.src, card.dataset.name);
-    });
-  });
 }
 
 // ------------- Listing (paged grid) -------------
@@ -407,7 +512,6 @@ function renderEpisodesPage(pageStr) {
     <p class="count-results">${eps.length} episodios</p>
     ${grid}
     ${pagination(eps.length, p, "/episodios")}`;
-  bindRecentEpisodes();
 }
 
 // ------------- Tag pages -------------
@@ -591,13 +695,8 @@ function renderDetail(type, slug) {
       ${item.tmdbRating ? `<div class="rating-box"><span class="rb-val">★ ${item.tmdbRating.toFixed(1)}</span><span class="rb-label">TMDb</span>${item.tmdbVotes ? `<span class="rb-votes">${esc(Number(item.tmdbVotes).toLocaleString("es"))} votos</span>` : ""}</div>` : ""}
     </div>` : "";
 
-  const embedUrl = item.type === "movie"
-    ? `https://playpaste.link/player/embed.php?id=${encodeURIComponent(item.embeddedId)}`
-    : null;
-
-  const playBtn = item.type === "movie"
-    ? `<button class="play-btn" data-player="player-${item.slug}" data-src="${esc(embedUrl)}"><span class="fas fa-play"></span> Reproducir</button>`
-    : "";
+  const wrapId = `player-${item.slug}`;
+  const playBtn = `<button class="play-btn" data-player="${esc(wrapId)}" ${ctxAttrs(item)}><span class="fas fa-play"></span> Reproducir</button>`;
 
   const episodeSection = item.type === "series" && item.episodes && item.episodes.length
     ? renderEpisodes(item)
@@ -641,26 +740,169 @@ function renderDetail(type, slug) {
           ${playBtn}
         </div>
       </div>
-      <div class="player-wrap" id="player-${item.slug}"></div>
-      
-      ${item.type === "series" ? `<div class="player-wrap" id="show-player"></div>` : ""}
+      <div class="player-wrap" id="${esc(wrapId)}"></div>
       ${episodeSection}
       ${directorBlock}
       ${castBlock}
       ${relatedBlock}
     </section>`;
 
-  const btn = root.querySelector(".play-btn");
-  if (btn) {
-    btn.addEventListener("click", () => {
-      const wrap = document.getElementById(btn.dataset.player);
-      if (!wrap) return;
-      wrap.classList.add("active");
-      wrap.innerHTML = `<iframe src="${btn.dataset.src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
-    });
-  }
   bindSeasonAccordion();
   adMount();
+  openEpisodeFromHash(item);
+}
+
+// TMDB id: movies carry `tmdb`; series often expose it as a numeric externalId.
+function tmdbId(item) {
+  const raw = String((item && (item.tmdb || item.externalId)) || "").trim();
+  return /^\d+$/.test(raw) ? raw : "";
+}
+
+// IMDb ids look like "tt0081249"; anything else is not a usable IMDb link.
+function imdbId(item) {
+  const raw = String((item && (item.imdb || item.externalId)) || "").trim();
+  return /^tt\d+$/i.test(raw) ? raw : "";
+}
+
+// data-* attributes carrying the context the source resolver needs.
+function ctxAttrs(item, ep) {
+  const attrs = {
+    "data-type": item.type,
+    "data-title": item.title,
+    "data-year": item.year || "",
+    "data-tmdb": tmdbId(item),
+    "data-imdb": imdbId(item),
+    "data-slug": item.slug,
+  };
+  if (ep) {
+    attrs["data-season"] = ep.season;
+    attrs["data-episode"] = ep.episode;
+  }
+  return Object.entries(attrs)
+    .filter(([, v]) => v !== "" && v != null)
+    .map(([k, v]) => `${k}="${esc(v)}"`)
+    .join(" ");
+}
+
+function ctxFromEl(node) {
+  const d = node.dataset || {};
+  return {
+    type: d.type || "movie",
+    title: d.title || "",
+    year: d.year || "",
+    tmdb: d.tmdb || "",
+    imdb: d.imdb || "",
+    slug: d.slug || "",
+    season: d.season || "",
+    episode: d.episode || "",
+  };
+}
+
+// Player slot: lists official/legal sources. Only embeds content when the
+// configured source is an embed (own or licensed catalogue).
+function playerPanelHTML(ctx, resolved) {
+  const isEpisode = Boolean(ctx.season && ctx.episode);
+  const label = isEpisode ? `${ctx.title} · T${ctx.season} E${ctx.episode}` : ctx.title;
+  const embed = resolved.embeds[0];
+  const frame = embed
+    ? `
+      <div class="pp-frame">
+        <iframe src="${esc(embed.url)}" title="${esc(label)}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+      </div>
+      ${resolved.embeds.length > 1
+        ? `<div class="pp-tabs">${resolved.embeds.map((s, i) => `<button type="button" class="pp-tab${i === 0 ? " active" : ""}" data-url="${esc(s.url)}">${esc(s.name)}</button>`).join("")}</div>`
+        : ""}`
+    : "";
+  const links = resolved.links.map((s) => `
+      <a class="pp-btn${s.primary ? " pp-primary" : ""}" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer nofollow">
+        ${s.icon ? `<span class="pp-ico">${esc(s.icon)}</span>` : ""}<span>${esc(s.name)}</span>
+      </a>`).join("");
+  const providers = resolved.providers.length
+    ? `
+      <div class="pp-providers">
+        <span class="pp-label">Disponible en</span>
+        <div class="pp-provider-btns">
+          ${resolved.providers.map((p) => `<a class="pp-provider" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(p.name)}</a>`).join("")}
+        </div>
+      </div>`
+    : "";
+
+  return `
+    <div class="pp">
+      <div class="pp-head">
+        <div class="pp-title">
+          <span class="pp-kicker">${isEpisode ? "Episodio" : "Título"}</span>
+          <h3>${esc(label)}</h3>
+        </div>
+        <button type="button" class="pp-close" aria-label="Cerrar reproductor">&#10005;</button>
+      </div>
+      ${frame}
+      <div class="pp-body">
+        <p class="pp-note">Este sitio no aloja ni transmite contenido. Las opciones abren servicios oficiales o el catálogo licenciado del sitio.</p>
+        ${links ? `<div class="pp-links">${links}</div>` : `<p class="pp-empty">No hay fuentes configuradas en <code>data/servers.json</code>.</p>`}
+        ${providers}
+      </div>
+    </div>`;
+}
+
+function bindPlayerPanel(wrap) {
+  const close = wrap.querySelector(".pp-close");
+  if (close) close.addEventListener("click", () => {
+    wrap.classList.remove("active", "panel-mode");
+    wrap.innerHTML = "";
+  });
+  wrap.querySelectorAll(".pp-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const frame = wrap.querySelector(".pp-frame iframe");
+      if (frame) frame.src = tab.dataset.url;
+      wrap.querySelectorAll(".pp-tab").forEach((t) => t.classList.toggle("active", t === tab));
+    });
+  });
+}
+
+async function showPlayerPanel(wrapId, ctx) {
+  let wrap = document.getElementById(wrapId);
+  if (!wrap) {
+    // Fallback: mount the slot right after the detail header, never at page top.
+    wrap = document.createElement("div");
+    wrap.id = wrapId;
+    wrap.className = "player-wrap";
+    const head = root.querySelector(".detail-head");
+    if (head && head.parentElement) head.after(wrap);
+    else root.insertBefore(wrap, root.firstChild);
+  }
+  wrap.classList.add("active", "panel-mode");
+  wrap.innerHTML = `<div class="pp-loading">Cargando opciones…</div>`;
+  const config = await loadServers();
+  if (!wrap.isConnected) return;
+  const resolved = resolvePlayerSources(config, ctx);
+  wrap.innerHTML = playerPanelHTML(ctx, resolved);
+  bindPlayerPanel(wrap);
+  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Deep link from an episode card: /detalle/series/<slug>/#t1e5
+function openEpisodeFromHash(item) {
+  const m = String(location.hash || "").match(/^#t(\d+)e(\d+)$/i);
+  if (!m || item.type !== "series") return;
+  const season = String(Number(m[1]));
+  const episode = String(Number(m[2]));
+  const ep = (item.episodes || []).find(
+    (x) => String(x.season) === season && String(x.episode) === episode
+  );
+  if (!ep) return;
+  showPlayerPanel(`player-${item.slug}`, { ...ctxFromItem(item), season: ep.season, episode: ep.episode });
+}
+
+function ctxFromItem(item) {
+  return {
+    type: item.type,
+    title: item.title,
+    year: item.year || "",
+    tmdb: tmdbId(item),
+    imdb: imdbId(item),
+    slug: item.slug,
+  };
 }
 
 // Person/people block (Director, Creador, Reparto)
@@ -708,7 +950,7 @@ function renderEpisodes(show) {
         ${seasons.map((s, i) => {
           const eps = bySeason[s].map((ep) => `
             <li>
-              <a href="javascript:void(0)" data-src="${esc(ep.embedded)}" data-name="${esc(show.title)} - T${ep.season} E${ep.episode}">
+              <a href="javascript:void(0)" data-player="player-${esc(show.slug)}" ${ctxAttrs(show, ep)}>
                 <span class="num">T${ep.season} E${ep.episode}</span>
                 <span class="episode-title">${esc(ep.title || `Episodio ${ep.episode}`)}</span>
                 ${ep.date ? `<span class="ep-date">${esc(ep.date)}</span>` : ""}
@@ -741,31 +983,14 @@ function bindSeasonAccordion() {
   });
 }
 
-function openPlayer(src, name) {
-  // Use the dedicated slot (already rendered after the detail header for series).
-  // Never jump to the top of the page.
-  let wrap = document.getElementById("show-player");
-  if (!wrap) {
-    // fallback: create the slot right after the detail header, not at page top
-    const head = root.querySelector(".detail-head");
-    wrap = document.createElement("div");
-    wrap.className = "player-wrap active";
-    wrap.id = "show-player";
-    if (head && head.parentElement) head.after(wrap);
-    else root.insertBefore(wrap, root.firstChild);
-  }
-  wrap.classList.add("active");
-  wrap.innerHTML = `<iframe src="${src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
-  if (name) wrap.setAttribute("data-name", name);
-  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-// delegate clicks (episodes list, recent episode cards)
+// delegate clicks on play buttons and episode rows -> source panel
 root.addEventListener("click", (e) => {
-  const epLink = e.target.closest(".episodes-list a[data-src]");
-  if (epLink) { openPlayer(epLink.dataset.src, epLink.dataset.name); return; }
-  const epCard = e.target.closest(".episode-card[data-src]");
-  if (epCard) { openPlayer(epCard.dataset.src, epCard.dataset.name); return; }
+  const trigger = e.target.closest("[data-player][data-type]");
+  if (!trigger) return;
+  const wrapId = trigger.getAttribute("data-player");
+  if (!wrapId) return;
+  e.preventDefault();
+  showPlayerPanel(wrapId, ctxFromEl(trigger));
 });
 
 // Internal clean-route navigation. The static host only serves real files
