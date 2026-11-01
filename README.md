@@ -9,7 +9,7 @@ Cloudflare Workers, Netlify…).
 
 | Ruta                   | Contenido                                                        |
 | ---------------------- | ---------------------------------------------------------------- |
-| `index.html`           | Shell de la SPA (una sola página para todo el sitio)             |
+| `index.html`           | Shell de la SPA (con `<base href="/">` para el fallback de rutas) |
 | `js/app.js`            | Router, vistas, buscador y reproductor                           |
 | `js/gam.js`            | Anuncios (Google Ad Manager)                                     |
 | `data/catalog.json`    | Catálogo (metadatos, reparto, episodios) generado por el scraper |
@@ -34,16 +34,23 @@ admite un `embed` propio si distribuyes contenido con derechos.
 No hay build. Para probar en local:
 
 ```bash
-python3 -m http.server 8080
+npm run dev
 # abre http://localhost:8080
 ```
+
+El servidor de desarrollo (`scripts/dev-server.mjs`) replica el fallback del
+hosting: las rutas sin fichero (`/genero/accion`, `/pais/mexico`, `/tag/anime`…)
+devuelven `index.html`. Con `python3 -m http.server` esas rutas dan 404 si se
+escriben a mano, porque no hace rewriting.
 
 Comprobaciones:
 
 ```bash
 node scripts/check-player-sources.mjs   # esquema y resolución de fuentes
-npm install                              # solo para el test de interfaz
-node scripts/check-player-ui.mjs         # render del panel con jsdom
+npm install                              # solo para los tests con jsdom
+node scripts/check-routes.mjs            # rutas reales y fallback SPA, sin errores JS
+node scripts/check-player-ui.mjs         # render del panel del reproductor
+npm run check                            # los tres
 ```
 
 ## Catálogo

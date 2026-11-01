@@ -45,8 +45,12 @@ for (const item of items) {
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">`;
 
-  const page = template
-    .replace("<head>", `<head>\n<base href="/">${socialHead}`)
+  // index.html ya trae <base href="/">: no duplicarla en las fichas generadas.
+  const withBase = template.includes('<base href="/">')
+    ? template.replace('<base href="/">', `<base href="/">${socialHead}`)
+    : template.replace("<head>", `<head>\n<base href="/">${socialHead}`);
+
+  const page = withBase
     .replace(
       /<meta name="description" content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${esc(description)}" />`
@@ -85,8 +89,12 @@ for (const sec of SECTIONS) {
 <meta name="twitter:title" content="${esc(sec.title)} - PelisLatinoHD">
 <meta name="twitter:description" content="${esc(sec.desc)}">
 <meta name="twitter:image" content="${esc(sec.image || `${origin}/social-default.jpg`)}">`;
-  const page = template
-    .replace("<head>", `<head>\n<base href="/">${socialHead}`)
+  // index.html ya trae <base href="/">: no duplicarla en las fichas generadas.
+  const withBase = template.includes('<base href="/">')
+    ? template.replace('<base href="/">', `<base href="/">${socialHead}`)
+    : template.replace("<head>", `<head>\n<base href="/">${socialHead}`);
+
+  const page = withBase
     .replace(
       /<meta name="description" content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${esc(sec.desc)}" />`
