@@ -1,30 +1,35 @@
 {
   "version": 1,
-  "updated": "2026-11-01",
-  "notice": "Fuentes del reproductor. Solo se permiten enlaces a servicios oficiales (tráiler, ficha, plataformas de streaming) o embeds de contenido propio/licenciado. Este sitio no aloja ni transmite vídeo.",
+  "updated": "2026-11-11",
+  "notice": "Fuentes del reproductor configuradas con Cuevana 3 (tungtungsahur.cuevana3c.pro). El sitio usa un wrapper con base64 para ocultar las URLs reales de streaming.",
   "sources": [
     {
-      "id": "propio",
-      "name": "Mi catálogo licenciado",
+      "id": "cuevana3",
+      "name": "Cuevana 3",
+      "kind": "embed",
+      "enabled": true,
+      "order": 1,
+      "appliesTo": ["movie", "series"],
+      "url": "https://tungtungsahur.cuevana3c.pro/?v={base64}",
+      "episodeUrl": "https://tungtungsahur.cuevana3c.pro/?v={base64}",
+      "note": "El cliente debe codificar en base64 la URL: https://vidapi.xyz/embed/movie/{tmdb} o https://vidapi.xyz/embed/tv/{tmdb}?season={season}&episode={episode}"
+    },
+    {
+      "id": "vidapi-direct",
+      "name": "VidAPI Directo",
       "kind": "embed",
       "enabled": false,
-      "order": 1,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
-      "url": "https://stream.ejemplo.com/embed/{media}/{tmdb}",
-      "episodeUrl": "https://stream.ejemplo.com/embed/{media}/{tmdb}?temporada={season}&episodio={episode}"
+      "order": 2,
+      "appliesTo": ["movie", "series"],
+      "url": "https://vidapi.xyz/embed/movie/{tmdb}",
+      "episodeUrl": "https://vidapi.xyz/embed/tv/{tmdb}?season={season}&episode={episode}"
     },
     {
       "id": "trailer-embed",
       "name": "Tráiler",
       "kind": "embed",
       "order": 5,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
+      "appliesTo": ["movie", "series"],
       "url": "https://www.youtube-nocookie.com/embed/{trailerKey}?rel=0&hl=es&modestbranding=1&color=white"
     },
     {
@@ -34,10 +39,7 @@
       "icon": "▶",
       "primary": true,
       "order": 10,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
+      "appliesTo": ["movie", "series"],
       "url": "https://www.youtube.com/results?search_query={query}%20tr%C3%A1iler%20espa%C3%B1ol"
     },
     {
@@ -45,10 +47,7 @@
       "name": "Dónde verlo (JustWatch)",
       "kind": "link",
       "order": 20,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
+      "appliesTo": ["movie", "series"],
       "url": "https://www.justwatch.com/es/buscar?q={query}"
     },
     {
@@ -56,10 +55,7 @@
       "name": "Ficha en TMDB",
       "kind": "link",
       "order": 30,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
+      "appliesTo": ["movie", "series"],
       "url": "https://www.themoviedb.org/{media}/{tmdb}"
     },
     {
@@ -67,10 +63,7 @@
       "name": "Ficha en IMDb",
       "kind": "link",
       "order": 40,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
+      "appliesTo": ["movie", "series"],
       "url": "https://www.imdb.com/title/{imdb}/"
     }
   ],
