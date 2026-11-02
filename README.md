@@ -29,6 +29,35 @@ admite un `embed` propio si distribuyes contenido con derechos.
 - Cambiar o añadir fuentes: edita `data/servers.json` (no hace falta recompilar)
 - Tráiler y disponibilidad reales: `node scripts/enrich-tmdb.mjs` (TMDB)
 
+## Publicar cambios desde tu PC (Windows)
+
+Doble clic en **`publicar.bat`** en la carpeta del proyecto. O desde la terminal:
+
+```powershell
+node scripts/publish.mjs              # revisa, hace commit en main y push
+node scripts/publish.mjs -m "texto"   # con tu propio mensaje
+node scripts/publish.mjs --dry-run    # solo enseña qué haría
+node scripts/publish.mjs --watch      # espera a que Pages termine el build
+```
+
+El script se encarga de lo que suele romperse a mano:
+
+- te avisa si estás en otra rama y **te pasa a `main`** (la que publica Pages);
+- sincroniza con el remoto y, si tu copia y GitHub han divergido, **para** con
+  las dos salidas posibles en vez de inventarse un merge;
+- **no publica documentos personales** (`memory/`, `temp/`, `sunat_*.html`,
+  `gob_*.html`, `r_*.htm`, `.env`…): añade las reglas a `.gitignore` y, si algo
+  se colase con `git add -f`, cancela el envío;
+- bloquea ficheros grandes antes de que GitHub rechace el push;
+- si no hay cambios, lo dice y no crea commits vacíos.
+
+Solo toca `main`. Si además necesitas mover `master` (por ejemplo porque
+Cloudflare despliega desde ahí), usa `--sync-master` una vez, o mejor elimina
+`master`: no tiene ningún commit que no esté ya en `main`.
+
+Después de publicar, la web tarda ~1 minuto:
+`https://youcefyakhoo.github.io/pelis/`
+
 ## Desarrollo
 
 No hay build. Para probar en local:

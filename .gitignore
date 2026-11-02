@@ -1,2 +1,21 @@
 node_modules/
 .DS_Store
+Thumbs.db
+
+# --- No publicar: documentos personales y temporales ---
+/memory/
+/temp/
+/belkafut/
+gob_*.html
+sunat_*.html
+or_*.html
+pa_pl_*.html
+paginas_amarillas_*.html
+r_*.htm
+rer*.html
+temp-*.js
+scrape-canales.js
+update-canales.yml
+test_dir.txt
+.env
+.env.*
