@@ -42,7 +42,8 @@ node scripts/publish.mjs --watch      # espera a que Pages termine el build
 
 El script se encarga de lo que suele romperse a mano:
 
-- te avisa si estás en otra rama y **te pasa a `main`** (la que publica Pages);
+- te avisa si estás en otra rama, **se lleva tus cambios sin commitear a `main`**
+  (la que publica Pages) y sigue;
 - sincroniza con el remoto y, si tu copia y GitHub han divergido, **para** con
   las dos salidas posibles en vez de inventarse un merge;
 - **no publica documentos personales** (`memory/`, `temp/`, `sunat_*.html`,

@@ -157,34 +157,44 @@ if (!gitignore.includes("No publicar: documentos personales")) {
 
 // ---------- 3. rama correcta ----------
 let branch = gitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
+
 if (branch !== BRANCH) {
   const dirty = gitOut(["status", "--porcelain"]) !== "";
-  if (SYNC_MASTER && branch === "master") {
-    warn(`estás en "${branch}"; se publicará en "${BRANCH}" de todas formas`);
-  } else if (branch === "master" || branch === "HEAD") {
-    if (dirty) {
-      die(`estás en "${branch}" con cambios sin guardar.`, [
-        `La web se publica desde "${BRANCH}". Ejecuta:`,
-        `  git stash push -m "mis cambios"`,
-        `  git switch ${BRANCH}`,
-        `  git stash pop`,
+  const label = branch === "HEAD" ? "HEAD separado" : `"${branch}"`;
+  warn(`estás en ${label}; la web se publica desde "${BRANCH}"`);
+
+  // Los cambios sin guardar se llevan solos a la rama correcta.
+  let stashed = false;
+  if (dirty) {
+    const stash = git(["stash", "push", "-u", "-m", "publish: cambios pendientes"]);
+    if (stash.status !== 0) {
+      die("no se pudieron apartar tus cambios.", [stash.err || "revisa `git status`"]);
+    }
+    stashed = true;
+    ok("cambios apartados temporalmente");
+  }
+
+  if (branch === "HEAD") {
+    git(["switch", BRANCH], { check: true });
+  } else if (git(["rev-parse", "--verify", "--quiet", BRANCH]).status === 0) {
+    git(["switch", BRANCH], { check: true });
+  } else {
+    git(["switch", "-c", BRANCH, `${REMOTE}/${BRANCH}`], { check: true });
+  }
+  ok(`cambiada la rama local a "${BRANCH}"`);
+
+  if (stashed) {
+    const pop = git(["stash", "pop"]);
+    if (pop.status !== 0) {
+      die("al pasar los cambios a \"main\" hubo un conflicto.", [
+        "Tus cambios NO se han perdido: están guardados.",
+        "Resuélvelo con:  git status",
+        "Cuando termines: git add -A && git stash drop",
       ]);
     }
-    git(["switch", BRANCH], { check: true });
-    ok(`cambiada la rama local de "${branch}" a "${BRANCH}"`);
-    branch = BRANCH;
-  } else if (!dirty) {
-    git(["switch", BRANCH], { check: true });
-    ok(`cambiada la rama local de "${branch}" a "${BRANCH}"`);
-    branch = BRANCH;
-  } else {
-    die(`estás en la rama "${branch}" con cambios sin guardar.`, [
-      `La web se publica desde "${BRANCH}". Ejecuta:`,
-      `  git stash push -m "mis cambios"`,
-      `  git switch ${BRANCH}`,
-      `  git stash pop`,
-    ]);
+    ok("cambios traídos a \"main\"");
   }
+  branch = BRANCH;
 }
 
 // ---------- 4. sincronizar con el remoto ----------
