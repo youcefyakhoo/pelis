@@ -95,7 +95,7 @@ const waitFor = async (dom, selector, timeout = 15000) => {
   return null;
 };
 
-const open = async (path) => {
+const open = async (path, opts = {}) => {
   const vc = new VirtualConsole();
   vc.on("jsdomError", (e) => {
     if (!/Could not load|resource|XMLHttpRequest|css/i.test(String(e.message))) {
@@ -114,6 +114,11 @@ const open = async (path) => {
       const realFetch = globalThis.fetch;
       window.fetch = async (input, init) => {
         const abs = new URL(String(input), window.document.baseURI || window.location.href);
+        // cuevanaCaído: la página de cuevana3c.pro falla, como cuando el sitio
+        // está caído de verdad. Tiene que saltar el respaldo.
+        if (opts.cuevanaCaido && new URL(abs).hostname === "cuevana3c.pro") {
+          throw new TypeError("Failed to fetch");
+        }
         const html = await fixtureDe(abs.href);
         if (html != null) return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
         return realFetch(abs, init);
@@ -228,6 +233,78 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
     "home: sin URLs de vídeo en el DOM",
     !dom.window.document.body.innerHTML.includes(["tung", "tungsahur"].join("")) &&
       !dom.window.document.body.innerHTML.includes("vidapi")
+  );
+  dom.window.close();
+}
+
+// ---------- respaldo cuando cuevana3c.pro está caído ----------
+// El botón tiene que llevar los ids (si no, el respaldo no puede construir
+// ninguna URL) y, al fallar cuevana, tienen que salir los embeds de
+// ev.pelislatinohd.com en vez de un mensaje de error.
+{
+  const dom = await open("/detalle/movie/007-al-servicio-secreto-de-su-majestad/", { cuevanaCaido: true });
+  await waitFor(dom, ".play-btn");
+  const doc = dom.window.document;
+  const btn = doc.querySelector(".play-btn");
+  const imdb = btn?.getAttribute("data-cv-imdb");
+  const tmdb = btn?.getAttribute("data-cv-tmdb");
+  check("respaldo: el botón lleva el id de IMDb", /^tt\d+$/.test(imdb || ""), btn?.outerHTML?.slice(0, 260));
+  check("respaldo: el botón lleva el id de TMDB", /^\d+$/.test(tmdb || ""), tmdb);
+
+  click(dom, btn);
+  const tab = await waitFor(dom, ".cv-tab", 15000);
+  check("respaldo: aparece el selector pese a la caída", Boolean(tab), doc.querySelector(".cv-caja")?.textContent?.slice(0, 160));
+  const nombres = textos(dom, ".cv-srv");
+  check(
+    "respaldo: se ofrecen los dos embeds de ev.pelislatinohd.com",
+    nombres.some((t) => t.includes("VidSrc")) && nombres.some((t) => t.includes("Embed69")),
+    nombres.join(" | ")
+  );
+  const urls = [...doc.querySelectorAll(".cv-srv")].map((n) => n.getAttribute("data-cv-url") || "");
+  check(
+    "respaldo: la URL de vidsrc usa el id de IMDb y pide español",
+    urls.some((u) => u === `https://vidsrc.sh/embed/movie?imdb=${imdb}&ds_lang=es`),
+    urls.join(" | ")
+  );
+  check(
+    "respaldo: la URL de embed69 usa el id de IMDb",
+    urls.some((u) => u === `https://embed69.org/f/${imdb}/`),
+    urls.join(" | ")
+  );
+  // La pestaña «Respaldo» tiene que seguir respondiendo al clic.
+  click(dom, tab);
+  await new Promise((r) => setTimeout(r, 200));
+  check(
+    "respaldo: la pestaña sigue viva tras el clic",
+    textos(dom, ".cv-srv").length === 2,
+    textos(dom, ".cv-srv").join(" | ")
+  );
+  dom.window.close();
+}
+
+// ---------- respaldo en un episodio ----------
+// En series el catálogo lleva TMDB, no IMDb: el respaldo tiene que usar el
+// TMDB y NO ofrecer embed69, que con series no funciona.
+{
+  const dom = await open("/detalle/series/siren/", { cuevanaCaido: true });
+  const fila = await waitFor(dom, ".seasons a[data-cv-slug]");
+  const imdbEp = fila?.getAttribute("data-cv-imdb");
+  const tmdbEp = fila?.getAttribute("data-cv-tmdb");
+  check("respaldo: la fila de episodio lleva el TMDB", /^\d+$/.test(tmdbEp || ""), tmdbEp);
+  check("respaldo: la fila de episodio no finge un IMDb", !imdbEp, imdbEp);
+
+  click(dom, fila);
+  await waitFor(dom, ".cv-srv", 15000);
+  const urls = [...dom.window.document.querySelectorAll(".cv-srv")].map((n) => n.getAttribute("data-cv-url") || "");
+  check(
+    "respaldo: el episodio se resuelve por TMDB",
+    urls.some((u) => u.includes("vidsrc.sh/embed/tv") && u.includes(`tmdb=${tmdbEp}`) && u.includes("ds_lang=es")),
+    urls.join(" | ")
+  );
+  check(
+    "respaldo: embed69 no se ofrece en episodios",
+    !urls.some((u) => u.includes("embed69")),
+    urls.join(" | ")
   );
   dom.window.close();
 }

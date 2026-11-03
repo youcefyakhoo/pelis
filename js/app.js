@@ -12,17 +12,28 @@ const SLIDER_ITEMS = 10;          // recommendation slides
 // descarga de la página de cuevana3c.pro. Aquí solo vive la presentación.
 
 // Contexto de cuevana3c.pro a partir de un título del catálogo.
+// También se guardan imdb y tmdb: no los usa cuevana3c.pro (va por slug), pero
+// sí el respaldo de ev.pelislatinohd.com, que se resuelve con ellos.
 function cuevanaCtx(item) {
   if (!item || !item.slug) return null;
+  // En el catálogo las películas llevan IMDb (tt…) y las series TMDB, pero las
+  // dos usan el campo externalId. Se normaliza aquí para no acabar con un
+  // número donde debería ir un tt… (el respaldo lo exige para funcionar).
+  const ext = String(item.externalId || "").trim();
+  const ids = {
+    imdb: /^tt\d+$/i.test(ext) ? ext : "",
+    tmdb: item.tmdb || (/^\d+$/.test(ext) ? ext : ""),
+  };
   if (item.type === "series") {
     return {
       slug: item.slug,
       tipo: "series",
       temporada: item.temporada || 1,
       episodio: item.episodio || 1,
+      ...ids,
     };
   }
-  return { slug: item.slug, tipo: "movie" };
+  return { slug: item.slug, tipo: "movie", ...ids };
 }
 
 // Atributos data-* del botón que abre el selector de servidores.
@@ -33,6 +44,10 @@ function cvAttrs(ctx, nombre) {
     `data-cv-tipo="${esc(ctx.tipo || "movie")}"`,
     ctx.temporada != null ? `data-cv-temporada="${esc(ctx.temporada)}"` : "",
     ctx.episodio != null ? `data-cv-episodio="${esc(ctx.episodio)}"` : "",
+    // Los ids viajan en el botón para que el respaldo de ev.pelislatinohd.com
+    // funcione también desde las tarjetas de episodios y de portada.
+    ctx.imdb ? `data-cv-imdb="${esc(ctx.imdb)}"` : "",
+    ctx.tmdb ? `data-cv-tmdb="${esc(ctx.tmdb)}"` : "",
     nombre ? `data-cv-nombre="${esc(nombre)}"` : "",
   ].filter(Boolean).join(" ");
 }
@@ -62,11 +77,64 @@ function cvPintar(wrap, grupos, nombre) {
     </div>`;
 }
 
+// Respaldo de ev.pelislatinohd.com (ha vuelto a estar en línea).
+//
+// El reproductor público de ese sitio acaba publicando estos embeds, y los dos
+// se resuelven con el id que el catálogo YA trae, así que no hay que consultar
+// a nadie: si cuevana3c.pro está caído, estos siguen funcionando.
+//
+// Comprobado en vivo (2026-11-03) contra títulos reales:
+//   - vidsrc.sh  → 200 con página propia, en película Y en episodio.
+//                  Películas por IMDb, episodios por TMDB: en el catálogo las
+//                  películas llevan IMDb (externalId = tt…) y las series TMDB.
+//   - embed69    → 200 con el título correcto, PERO SOLO en película. Con
+//                  series devuelve {"error":"No folders found"}.
+//
+// Devuelve una lista de {nombre, url}, o vacía si no hay con qué.
+function cvRespaldo(ctx) {
+  if (!ctx) return [];
+  const imdb = String(ctx.imdb || "").trim();
+  const tmdb = String(ctx.tmdb || "").trim();
+  const esEpisodio = ctx.tipo === "series" && ctx.temporada != null && ctx.episodio != null;
+  const salida = [];
+
+  if (esEpisodio) {
+    if (/^\d+$/.test(tmdb)) {
+      salida.push({
+        nombre: "VidSrc (Español)",
+        url: `https://vidsrc.sh/embed/tv?tmdb=${encodeURIComponent(tmdb)}` +
+             `&season=${encodeURIComponent(ctx.temporada)}` +
+             `&episode=${encodeURIComponent(ctx.episodio)}&ds_lang=es`,
+      });
+    }
+    return salida;
+  }
+
+  if (/^tt\d+$/.test(imdb)) {
+    salida.push({
+      nombre: "VidSrc (Español)",
+      url: `https://vidsrc.sh/embed/movie?imdb=${encodeURIComponent(imdb)}&ds_lang=es`,
+    });
+    salida.push({
+      nombre: "Embed69",
+      url: `https://embed69.org/f/${encodeURIComponent(imdb)}/`,
+    });
+  }
+  return salida;
+}
+
 // Baja los servidores de cuevana3c.pro y los pinta.
 async function cvAbrir(wrap, ctx, nombre) {
   if (!wrap || !ctx || !ctx.slug) return;
   // Si js/cuevana.js no llegó a cargarse, avisamos en vez de romper la ficha.
   if (typeof Cuevana === "undefined" || !Cuevana.buscarServidores) {
+    const grupos = [{ idioma: "Respaldo", servidores: cvRespaldo(ctx) }];
+    if (grupos[0].servidores.length) {
+      wrap.classList.add("active");
+      cvEstado = { wrap, ctx, nombre: nombre || "", grupos, idioma: null };
+      cvPintar(wrap, grupos, nombre || "");
+      return;
+    }
     wrap.classList.add("active");
     wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudo cargar el extractor de servidores (js/cuevana.js).</p></div>`;
     return;
@@ -82,6 +150,14 @@ async function cvAbrir(wrap, ctx, nombre) {
     cvPintar(wrap, grupos, cvEstado.nombre);
   } catch (e) {
     if (!cvEstado || cvEstado.wrap !== wrap) return;
+    // cuevana3c.pro no ha respondido. Antes de rendirse se ofrece el respaldo
+    // de ev.pelislatinohd.com, que va por otro lado y cubre más títulos.
+    const grupos = [{ idioma: "Respaldo", servidores: cvRespaldo(ctx) }];
+    if (grupos[0].servidores.length) {
+      cvEstado.grupos = grupos;
+      cvPintar(wrap, grupos, cvEstado.nombre);
+      return;
+    }
     wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudieron sacar los servidores de cuevana3c.pro: ${esc(String((e && e.message) || e))}</p></div>`;
   }
 }
@@ -307,7 +383,14 @@ function episodeHomeCard(ep) {
     : routeUrl("episodios/");
   const label = `T${ep.season} E${ep.episode}`;
   const poster = serie ? serie.poster : null;
-  const ctx = cuevanaCtx({ slug: serie && serie.slug, type: "series", temporada: ep.season, episodio: ep.episode });
+  const ctx = cuevanaCtx({
+    slug: serie && serie.slug,
+    type: "series",
+    temporada: ep.season,
+    episodio: ep.episode,
+    externalId: serie && serie.externalId,
+    tmdb: serie && serie.tmdb,
+  });
   return `
   <div class="episode-card" ${cvAttrs(ctx, `${ep.serie} - ${label}`)}>
     ${poster ? `<img src="${esc(poster)}" alt="" style="width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : ""}
@@ -865,7 +948,7 @@ function renderEpisodes(show) {
         ${seasons.map((s, i) => {
           const eps = bySeason[s].map((ep) => `
             <li>
-              <a href="javascript:void(0)" ${cvAttrs(cuevanaCtx({ slug: show.slug, type: "series", temporada: ep.season, episodio: ep.episode }), `${show.title} - T${ep.season} E${ep.episode}`)}>
+              <a href="javascript:void(0)" ${cvAttrs(cuevanaCtx({ slug: show.slug, type: "series", temporada: ep.season, episodio: ep.episode, externalId: show.externalId, tmdb: show.tmdb }), `${show.title} - T${ep.season} E${ep.episode}`)}>
                 <span class="num">T${ep.season} E${ep.episode}</span>
                 <span class="episode-title">${esc(ep.title || `Episodio ${ep.episode}`)}</span>
                 ${ep.date ? `<span class="ep-date">${esc(ep.date)}</span>` : ""}
@@ -929,6 +1012,8 @@ document.addEventListener("click", (e) => {
         tipo: abrir.dataset.cvTipo || "movie",
         temporada: abrir.dataset.cvTemporada,
         episodio: abrir.dataset.cvEpisodio,
+        imdb: abrir.dataset.cvImdb || "",
+        tmdb: abrir.dataset.cvTmdb || "",
       },
       abrir.dataset.cvNombre || ""
     );

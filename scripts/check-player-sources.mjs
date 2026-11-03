@@ -56,7 +56,14 @@ const movie = resolvePlayerSources(config, {
 });
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 
-check("película: sin embeds con la config por defecto", movie.embeds.length === 0);
+// El respaldo de ev.pelislatinohd.com SÍ se embebe: son los únicos embeds de
+// la config por defecto, y ninguno es la página de cuevana3c.pro.
+check(
+  "película: los únicos embeds son los de respaldo",
+  movie.embeds.every((e) => e.id === "vidsrc-es" || e.id === "embed69"),
+  movie.embeds.map((e) => e.id).join(",")
+);
+check("película: dos respaldos en película", movie.embeds.length === 2, `salieron ${movie.embeds.length}`);
 check("película: enlace de tráiler", byId(movie.links).trailer?.url.startsWith("https://www.youtube.com/results?search_query="));
 check(
   "película: query codificada",
@@ -81,13 +88,16 @@ const withTrailer = resolvePlayerSources(config, {
   imdb: "tt0068646",
   trailerKey: "dQw4w9WgXcQ",
 });
-check("tráiler: iframe de youtube-nocookie", withTrailer.embeds[0]?.url.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), withTrailer.embeds[0]?.url);
-check("tráiler: sin clave no se incrusta nada", movie.embeds.length === 0);
+// El tráiler se busca por id: los embeds de respaldo de ev.pelislatinohd.com
+// van delante y ya no es el primero de la lista.
+const trailerDe = (r) => Object.fromEntries(r.embeds.map((x) => [x.id, x]))["trailer-embed"];
+check("tráiler: iframe de youtube-nocookie", trailerDe(withTrailer)?.url.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), trailerDe(withTrailer)?.url);
+check("tráiler: sin clave no se incrusta nada", !trailerDe(movie));
 
 const trailerEp = resolvePlayerSources(config, {
   type: "series", title: "Siren", tmdb: "71886", trailerKey: "abc123", season: "1", episode: "2",
 });
-check("tráiler: disponible también en episodios", trailerEp.embeds[0]?.url.includes("abc123"));
+check("tráiler: disponible también en episodios", trailerDe(trailerEp)?.url.includes("abc123"));
 
 // ---- 4. serie y episodio ---------------------------------------------------
 const series = resolvePlayerSources(config, {
@@ -246,6 +256,64 @@ if (cuevana) {
   check("cuevana: HTML sin pestañas no rompe", cuevana.extraerServidores("<html><body>nada</body></html>").length === 0);
   check("cuevana: agrupar lista vacía", cuevana.agruparPorIdioma([]).length === 0);
 }
+
+// ---- 5b. el respaldo de ev.pelislatinohd.com ---------------------------------
+// Comprobado en vivo: vidsrc.sh responde 200 en película y en episodio;
+// embed69 solo en película (con series da {"error":"No folders found"}).
+const rVidsrc = (config.sources || []).find((x) => x.id === "vidsrc-es");
+check("respaldo: vidsrc existe y está activo", rVidsrc?.enabled === true && rVidsrc?.kind === "embed");
+check(
+  "respaldo: vidsrc de película por IMDb y en español",
+  rVidsrc?.url === "https://vidsrc.sh/embed/movie?imdb={imdb}&ds_lang=es",
+  rVidsrc?.url
+);
+check(
+  "respaldo: vidsrc de episodio por TMDB",
+  rVidsrc?.episodeUrl === "https://vidsrc.sh/embed/tv?tmdb={tmdb}&season={season}&episode={episode}&ds_lang=es",
+  rVidsrc?.episodeUrl
+);
+const rEmb69 = (config.sources || []).find((x) => x.id === "embed69");
+check(
+  "respaldo: embed69 solo en película",
+  Array.isArray(rEmb69?.appliesTo) && rEmb69.appliesTo.length === 1 && rEmb69.appliesTo[0] === "movie",
+  JSON.stringify(rEmb69?.appliesTo)
+);
+check("respaldo: embed69 por IMDb", rEmb69?.url === "https://embed69.org/f/{imdb}/", rEmb69?.url);
+
+// El respaldo se resuelve con los ids del catálogo: película por IMDb.
+const fbMovie = resolvePlayerSources(config, {
+  type: "movie", title: "Red Social", year: 2010, tmdb: "37799", imdb: "tt1285016", slug: "red-social",
+});
+const fbById = Object.fromEntries(fbMovie.embeds.map((x) => [x.id, x]));
+check(
+  "respaldo: URL de película de vidsrc",
+  fbById["vidsrc-es"]?.url === "https://vidsrc.sh/embed/movie?imdb=tt1285016&ds_lang=es",
+  fbById["vidsrc-es"]?.url
+);
+check(
+  "respaldo: URL de película de embed69",
+  fbById.embed69?.url === "https://embed69.org/f/tt1285016/",
+  fbById.embed69?.url
+);
+
+// …y el episodio por TMDB (en el catálogo las series llevan TMDB, no IMDb).
+const fbEp = resolvePlayerSources(config, {
+  type: "series", title: "Siren", tmdb: "71886", slug: "siren", season: "1", episode: "1",
+});
+const fbEpById = Object.fromEntries(fbEp.embeds.map((x) => [x.id, x]));
+check(
+  "respaldo: URL de episodio de vidsrc",
+  fbEpById["vidsrc-es"]?.url === "https://vidsrc.sh/embed/tv?tmdb=71886&season=1&episode=1&ds_lang=es",
+  fbEpById["vidsrc-es"]?.url
+);
+check(
+  "respaldo: embed69 no se ofrece en episodio (no funciona con series)",
+  !fbEpById.embed69,
+  JSON.stringify(fbEp.embeds.map((x) => x.id))
+);
+// Sin ids no se puede construir nada: mejor descartar que inventar una URL.
+const fbNoIds = resolvePlayerSources(config, { type: "movie", title: "Sin ids" });
+check("respaldo: sin ids no se inventa ninguna URL", fbNoIds.embeds.length === 0, `salieron ${fbNoIds.embeds.length}`);
 
 // ---- 5c. la fuente de Cuevana se resuelve a su página ----------------------
 const cvPeli = resolvePlayerSources(config, {
