@@ -8,6 +8,11 @@ Regla del proyecto: aquí solo se configuran **servicios oficiales** (tráiler,
 fichas, plataformas de streaming) o **embeds de contenido propio o licenciado**.
 El sitio no aloja ni transmite vídeo.
 
+**Excepción, añadida por petición del dueño del repo:** la fuente `cuevana3`
+apunta a `cuevana3c.pro`, de donde el navegador **saca** la lista de servidores
+en el momento de abrir el título. Es la única fuente de ese tipo
+(`kind: "cuevana"`).
+
 ## Cómo funciona
 
 ```
@@ -29,6 +34,40 @@ panel del reproductor (tráiler, dónde verlo, plataformas, embed licenciado)
 - Si `data/servers.json` no se puede cargar, el cliente usa un modo de
   emergencia con solo la búsqueda de tráiler.
 
+## Servidores de Cuevana (`js/cuevana.js`)
+
+La fuente `cuevana3` no guarda una URL de vídeo: guarda la **página** de
+cuevana3c.pro de la que hay que extraerlos. Al pulsar **Reproducir** el
+navegador baja esa página y la interpreta.
+
+```
+cuevana3c.pro/pelicula/{slug}               →  4 pestañas de idioma
+cuevana3c.pro/serie/{slug}/episodio-{t}x{e}
+        │
+        ▼  js/cuevana.js  (Cuevana.extraerServidores)
+[{idioma, servidores:[{nombre, url}]}]   ordenado:
+        │                                Latino → Castellano → Subtitulado → resto
+        ▼  js/app.js  (cvAbrir / cvPintar)
+pestañas de idioma + botones de servidor
+        │
+        ▼  clic en un servidor
+<iframe src="https://tungtungsahur.cuevana3c.pro/?token=…">
+```
+
+Detalles que importan:
+
+- **El `slug` del catálogo es el mismo que usa cuevana3c.pro**, así que no hace
+  falta TMDB ni IMDb para encontrarlo.
+- cuevana3c.pro **manda cabeceras CORS**, por eso se puede bajar desde el
+  navegador. El wrapper `tungtungsahur` **no** las manda, pero ese solo se usa
+  como `src` del `<iframe>`, que no las necesita.
+- El orden de idioma es fijo: **Latino → Castellano → Subtitulado → resto**.
+- Si la página no se puede leer, se muestra un aviso en el hueco del
+  reproductor y no se rompe la ficha.
+
+La clave XOR y los hosts del wrapper están en `js/cuevana.js` (`CLAVE`, `HOST`).
+Si el sitio los cambia, hay que actualizarlos ahí.
+
 ## Esquema
 
 ```jsonc
@@ -39,6 +78,8 @@ panel del reproductor (tráiler, dónde verlo, plataformas, embed licenciado)
       "id": "trailer",                  // identificador único
       "name": "Tráiler oficial",        // texto del botón
       "kind": "link",                   // "link" (pestaña nueva) | "embed" (iframe)
+                                      // | "cuevana" (página de la que extraer
+                                      //   los servidores; ver js/cuevana.js)
       "icon": "▶",                      // opcional
       "primary": true,                  // botón destacado
       "order": 10,                      // menor = antes
@@ -143,6 +184,14 @@ node scripts/check-player-sources.mjs
 Comprueba el esquema, la resolución para películas/series/episodios, que un
 embed solo aparezca cuando corresponde y que no haya hosts de streaming pirata
 en `js/`, `scraper/` ni `data/`.
+
+```bash
+npm run check      # player + rutas + UI + páginas (necesita npm install)
+```
+
+`check-player-ui.mjs` abre la ficha en jsdom, pulsa **Reproducir** y comprueba
+que salgan las pestañas de idioma y los servidores. La página de cuevana3c.pro
+se sirve desde `tests/fixtures/`, así que el test no depende de la red.
 
 ## Notas
 

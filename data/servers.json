@@ -1,18 +1,21 @@
 {
   "version": 1,
-  "updated": "2026-11-11",
-  "notice": "Fuentes del reproductor configuradas con Cuevana 3 (tungtungsahur.cuevana3c.pro). El sitio usa un wrapper con base64 para ocultar las URLs reales de streaming.",
+  "updated": "2026-11-03",
+  "notice": "Los servidores de reproducción se SACAN de cuevana3c.pro en el momento de abrir el título: la web pública ahí una pestaña por idioma (Latino / Castellano / Subtitulado / Multilenguaje) con la lista de servidores de cada uno. Por eso esta fuente es de kind \"cuevana\" y guarda la página de la que extraer, no una URL de vídeo.",
   "sources": [
     {
       "id": "cuevana3",
       "name": "Cuevana 3",
-      "kind": "embed",
+      "kind": "cuevana",
       "enabled": true,
       "order": 1,
-      "appliesTo": ["movie", "series"],
-      "url": "https://tungtungsahur.cuevana3c.pro/?v={base64}",
-      "episodeUrl": "https://tungtungsahur.cuevana3c.pro/?v={base64}",
-      "note": "El cliente debe codificar en base64 la URL: https://vidapi.xyz/embed/movie/{tmdb} o https://vidapi.xyz/embed/tv/{tmdb}?season={season}&episode={episode}"
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
+      "url": "https://cuevana3c.pro/pelicula/{slug}",
+      "episodeUrl": "https://cuevana3c.pro/serie/{slug}/episodio-{season}x{episode}",
+      "note": "No es una URL reproducibile: es la página de cuevana3c.pro de la que el cliente saca los servidores con Cuevana.buscarServidores(). El slug del catálogo coincide con el de la web, así que no hace falta TMDB ni IMDb."
     },
     {
       "id": "vidapi-direct",
@@ -20,16 +23,23 @@
       "kind": "embed",
       "enabled": false,
       "order": 2,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://vidapi.xyz/embed/movie/{tmdb}",
-      "episodeUrl": "https://vidapi.xyz/embed/tv/{tmdb}?season={season}&episode={episode}"
+      "episodeUrl": "https://vidapi.xyz/embed/tv/{tmdb}?season={season}&episode={episode}",
+      "note": "Desactivado: la app y la web sacan ya los servidores de cuevana3c.pro, que además los agrupa por idioma."
     },
     {
       "id": "trailer-embed",
       "name": "Tráiler",
       "kind": "embed",
       "order": 5,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.youtube-nocookie.com/embed/{trailerKey}?rel=0&hl=es&modestbranding=1&color=white"
     },
     {
@@ -39,7 +49,10 @@
       "icon": "▶",
       "primary": true,
       "order": 10,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.youtube.com/results?search_query={query}%20tr%C3%A1iler%20espa%C3%B1ol"
     },
     {
@@ -47,7 +60,10 @@
       "name": "Dónde verlo (JustWatch)",
       "kind": "link",
       "order": 20,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.justwatch.com/es/buscar?q={query}"
     },
     {
@@ -55,7 +71,10 @@
       "name": "Ficha en TMDB",
       "kind": "link",
       "order": 30,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.themoviedb.org/{media}/{tmdb}"
     },
     {
@@ -63,7 +82,10 @@
       "name": "Ficha en IMDb",
       "kind": "link",
       "order": 40,
-      "appliesTo": ["movie", "series"],
+      "appliesTo": [
+        "movie",
+        "series"
+      ],
       "url": "https://www.imdb.com/title/{imdb}/"
     }
   ],

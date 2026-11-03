@@ -1,6 +1,8 @@
-// Comprobación de la capa de fuentes del reproductor, sin navegador real.
-// Sirve `index.html` + `detalle/` con un servidor local y ejecuta la app en
-// jsdom: abre una ficha de película, pulsa "Reproducir" y valida el panel.
+// Comprobación del selector de servidores de Cuevana, sin navegador real.
+// Sirve el repo con un servidor local y ejecuta la app en jsdom: abre una
+// ficha de película, pulsa "Reproducir" y valida que salgan las pestañas de
+// idioma y los servidores. La página de cuevana3c.pro se sirve desde
+// tests/fixtures para no depender de la red.
 //
 // Requiere la dependencia de desarrollo: npm install
 // Uso: node scripts/check-player-ui.mjs
@@ -52,6 +54,20 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((r) => server.listen(PORT, "127.0.0.1", r));
 
+// Páginas reales de cuevana3c.pro guardadas como fixture: el selector debe
+// comportarse igual con ellas que con el sitio en vivo.
+const FIXTURAS = {
+  "https://cuevana3c.pro/pelicula/": "tests/fixtures/cuevana-pelicula.html",
+  "https://cuevana3c.pro/serie/": "tests/fixtures/cuevana-episodio.html",
+};
+const fixtureDe = async (url) => {
+  const u = String(url);
+  for (const [prefijo, fichero] of Object.entries(FIXTURAS)) {
+    if (u.startsWith(prefijo)) return await readFile(join(ROOT, fichero), "utf8");
+  }
+  return null;
+};
+
 const resources = {
   interceptors: [
     requestInterceptor((request) => {
@@ -93,15 +109,23 @@ const open = async (path) => {
     virtualConsole: vc,
     beforeParse(window) {
       window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
-      // fetch resuelve contra <base href="/">, igual que un navegador real
-      window.fetch = (input, init) => globalThis.fetch(new URL(input, window.document.baseURI || window.location.href), init);
+      // Igual que un navegador: fetch resuelve contra <base href>. Las peticiones
+      // a cuevana3c.pro se sirven desde el fixture.
+      const realFetch = globalThis.fetch;
+      window.fetch = async (input, init) => {
+        const abs = new URL(String(input), window.document.baseURI || window.location.href);
+        const html = await fixtureDe(abs.href);
+        if (html != null) return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+        return realFetch(abs, init);
+      };
       window.scrollTo = () => {};
       window.Element.prototype.scrollIntoView = () => {};
     },
   });
 };
 
-const click = (dom, node) => node.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+const click = (dom, node) => node && node.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+const textos = (dom, sel) => [...dom.window.document.querySelectorAll(sel)].map((n) => n.textContent.trim());
 
 const catalog = JSON.parse(await readFile(join(ROOT, "data/catalog.json"), "utf8"));
 
@@ -113,74 +137,84 @@ const movieItem = catalog.movies.find((m) => m.slug === "007-al-servicio-secreto
   const doc = dom.window.document;
   const btn = doc.querySelector(".play-btn");
   check("película: botón Reproducir renderizado", Boolean(btn));
-  check("película: el botón lleva contexto", btn?.getAttribute("data-tmdb") && btn?.getAttribute("data-imdb"), btn?.outerHTML);
-  click(dom, btn);
-  check("película: panel de fuentes abierto", Boolean(await waitFor(dom, ".pp")));
-  const links = [...doc.querySelectorAll(".pp-links a")].map((a) => a.getAttribute("href"));
-  check("película: enlace de tráiler", links.some((h) => h.startsWith("https://www.youtube.com/results?search_query=")), links.join(" | "));
-  check("película: ficha TMDB", links.includes(`https://www.themoviedb.org/movie/${movieItem.tmdb}`), links.join(" | "));
-  check("película: ficha IMDb", links.includes(`https://www.imdb.com/title/${movieItem.externalId}/`), links.join(" | "));
-  check("película: JustWatch", links.some((h) => h.startsWith("https://www.justwatch.com/")));
-  check("película: plataformas oficiales", doc.querySelectorAll(".pp-provider").length === 7, String(doc.querySelectorAll(".pp-provider").length));
-  check("película: sin iframe (config legal por defecto)", !doc.querySelector(".pp-frame iframe"));
-  check("película: aviso legal", /no aloja ni transmite/i.test(doc.querySelector(".pp-note")?.textContent || ""));
-  click(dom, doc.querySelector(".pp-close"));
-  check("película: el panel se cierra", !doc.querySelector(".pp"));
+  check("película: el botón lleva el slug", btn?.getAttribute("data-cv-slug") === movieItem.slug, btn?.outerHTML);
+  check("película: el botón dice que es película", btn?.getAttribute("data-cv-tipo") === "movie");
+  check("película: no lleva URL de vídeo en el DOM", !/tungtungsahur|vidapi/.test(btn?.outerHTML || ""));
 
-  // título enriquecido por scripts/enrich-tmdb.mjs: tráiler incrustado + plataformas
-  dom.window.eval(`
-    (() => {
-      const item = CATALOG.movies.find((m) => m.slug === "007-al-servicio-secreto-de-su-majestad");
-      item.trailerKey = "dQw4w9WgXcQ";
-      item.providersRegion = "PE";
-      item.providerLink = "https://www.themoviedb.org/movie/668/watch?locale=PE";
-      item.providers = [
-        { id: "8", name: "Netflix", type: "flatrate", logo: null },
-        { id: "2", name: "Apple TV", type: "rent", logo: null },
-      ];
-    })()
-  `);
   click(dom, btn);
-  await waitFor(dom, ".pp");
-  const frame = doc.querySelector(".pp-frame iframe");
-  check("enriquecido: tráiler en iframe", frame?.getAttribute("src")?.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), frame?.getAttribute("src"));
-  check("enriquecido: un solo embed, sin pestañas", !doc.querySelector(".pp-tabs"));
-  const realProviders = [...doc.querySelectorAll(".pp-provider-real")];
-  check("enriquecido: plataformas oficiales", realProviders.length === 2, String(realProviders.length));
-  check("enriquecido: enlace de disponibilidad", realProviders[0]?.getAttribute("href") === "https://www.themoviedb.org/movie/668/watch?locale=PE", realProviders[0]?.getAttribute("href"));
-  check("enriquecido: tipo de plataforma", /Suscripción/.test(realProviders[0]?.textContent || ""), realProviders[0]?.textContent);
+  const tabs = await waitFor(dom, ".cv-tab");
+  check("película: selector de servidores abierto", Boolean(tabs));
+  const idiomas = textos(dom, ".cv-tab");
+  console.log(`  ..   idiomas: ${idiomas.join(" / ")}`);
+  check(
+    "película: idiomas en el orden pedido",
+    JSON.stringify(idiomas) === JSON.stringify(["Latino", "Castellano", "Subtitulado", "Multilenguaje [CC]"]),
+    JSON.stringify(idiomas)
+  );
+  check("película: Latino está activo", doc.querySelector(".cv-tab.activo")?.textContent.trim() === "Latino");
+  const latino = textos(dom, ".cv-srv");
+  console.log(`  ..   servidores de Latino: ${latino.join(", ")}`);
+  check("película: servidores de Latino", latino.length === 2 && latino.every((t) => t && t !== "Reproducir"), JSON.stringify(latino));
+
+  // cambiar de pestaña tiene que volver a pintar sin recargar la página
+  const tabCast = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Castellano");
+  click(dom, tabCast);
+  await new Promise((r) => setTimeout(r, 200));
+  check("película: Castellano queda activo", doc.querySelector(".cv-tab.activo")?.textContent.trim() === "Castellano");
+  const castellano = textos(dom, ".cv-srv");
+  console.log(`  ..   servidores de Castellano: ${castellano.join(", ")}`);
+  check("película: servidores de Castellano", castellano.length === 2, JSON.stringify(castellano));
+
+  // pulsar un servidor abre el iframe con la URL del wrapper
+  const srv = doc.querySelector(".cv-srv");
+  click(dom, srv);
+  const frame = await waitFor(dom, ".player-wrap iframe");
+  check("película: iframe al pulsar un servidor", Boolean(frame));
+  check(
+    "película: el iframe apunta al wrapper de cuevana3c.pro",
+    (frame?.getAttribute("src") || "").startsWith("https://tungtungsahur.cuevana3c.pro/?token="),
+    frame?.getAttribute("src")
+  );
   dom.window.close();
 }
 
-// ---------- serie + deep link de episodio ----------
+// ---------- serie: episodios ----------
 const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episodes || []).length > 0);
 {
-  const ep0 = show.episodes[0];
-  const dom = await open(`/detalle/series/${show.slug}/#t${ep0.season}e${ep0.episode}`);
+  const dom = await open(`/detalle/series/${show.slug}/`);
   await waitFor(dom, ".seasons-block");
   const doc = dom.window.document;
   check("serie: ficha con temporadas", Boolean(doc.querySelector(".seasons-block")));
-  check("serie: panel abierto desde #tSeE", Boolean(await waitFor(dom, ".pp")), show.slug);
+  const rows = [...doc.querySelectorAll(".episodes-list a[data-cv-slug]")];
+  check("serie: filas de episodio con slug", rows.length > 0, String(rows.length));
   check(
-    "serie: episodio correcto en el panel",
-    new RegExp(`T${ep0.season} E${ep0.episode}`).test(doc.querySelector(".pp-title h3")?.textContent || ""),
-    doc.querySelector(".pp-title h3")?.textContent
-  );
-  check(
-    "serie: ficha TMDB de serie",
-    [...doc.querySelectorAll(".pp-links a")].some((a) => a.getAttribute("href") === `https://www.themoviedb.org/tv/${show.tmdb}`)
+    "serie: fila con temporada y episodio",
+    rows[0]?.getAttribute("data-cv-temporada") !== null && rows[0]?.getAttribute("data-cv-episodio") !== null,
+    rows[0]?.outerHTML?.slice(0, 200)
   );
 
-  // clic en una fila de episodio -> panel con ese episodio
-  const rows = [...doc.querySelectorAll(".episodes-list a[data-player]")];
-  check("serie: filas de episodio con contexto", rows.length > 0 && rows[0].getAttribute("data-season") !== null);
   click(dom, rows[0]);
-  await new Promise((r) => setTimeout(r, 300));
-  check(
-    "serie: clic en episodio abre su panel",
-    new RegExp(`T${rows[0].dataset.season} E${rows[0].dataset.episode}`).test(doc.querySelector(".pp-title h3")?.textContent || ""),
-    doc.querySelector(".pp-title h3")?.textContent
-  );
+  const tabs = await waitFor(dom, ".cv-tab");
+  check("serie: selector abierto desde un episodio", Boolean(tabs));
+  // Se recorren todas las pestañas: cada una pinta solo sus servidores.
+  // OJO: cvPintar() sustituye el HTML entero, así que los botones de las
+  // pestañas se recrean en cada clic. Hay que volver a buscarlos cada vez.
+  const porIdioma = {};
+  for (let i = 0; i < 5; i++) {
+    const tab = [...doc.querySelectorAll(".cv-tab")][i];
+    if (!tab) break;
+    const nombre = tab.textContent.trim();
+    click(dom, tab);
+    await new Promise((r) => setTimeout(r, 120));
+    porIdioma[nombre] = textos(dom, ".cv-srv").length;
+  }
+  const total = Object.values(porIdioma).reduce((a, b) => a + b, 0);
+  console.log(`  ..   servidores del episodio: ${total} (${JSON.stringify(porIdioma)})`);
+  check("serie: servidores del episodio", total === 6, String(total));
+  const srv = doc.querySelector(".cv-srv");
+  click(dom, srv);
+  const frame = await waitFor(dom, ".player-wrap iframe");
+  check("serie: iframe al pulsar un servidor", Boolean(frame));
   dom.window.close();
 }
 
@@ -189,8 +223,12 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
   const dom = await open("/");
   await waitFor(dom, ".episode-card");
   const card = dom.window.document.querySelector(".episode-card");
-  check("home: episodios enlazan a la ficha", Boolean(card?.getAttribute("href")?.includes("/detalle/series/")), card?.outerHTML?.slice(0, 160));
-  check("home: sin URLs de vídeo en el DOM", !dom.window.document.body.innerHTML.includes(["play", "paste"].join("")));
+  check("home: tarjeta de episodio con slug", Boolean(card?.getAttribute("data-cv-slug")), card?.outerHTML?.slice(0, 200));
+  check(
+    "home: sin URLs de vídeo en el DOM",
+    !dom.window.document.body.innerHTML.includes(["tung", "tungsahur"].join("")) &&
+      !dom.window.document.body.innerHTML.includes("vidapi")
+  );
   dom.window.close();
 }
 

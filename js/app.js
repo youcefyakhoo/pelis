@@ -6,36 +6,176 @@ const PER_PAGE = 28;              // items per listing page (grid)
 const HOME_ITEMS = 14;            // per home module
 const SLIDER_ITEMS = 10;          // recommendation slides
 
-// ------------- Cuevana 3 server helpers -------------
-const CUEVANA_WRAPPER = "https://tungtungsahur.cuevana3c.pro/?v=";
-const CUEVANA_SERVER = "https://vidapi.xyz/embed/";
+// ------------- Cuevana 3: servidores por idioma -------------
+// js/cuevana.js se carga antes que este fichero y deja el global `Cuevana`,
+// que lleva el parseo puro (probado en scripts/check-player-sources.mjs) y la
+// descarga de la página de cuevana3c.pro. Aquí solo vive la presentación.
 
-// Base64 URL-safe encoder (btoa nativo con corrección para caracteres)
-function b64UrlSafe(str) {
-  return btoa(unescape(encodeURIComponent(str)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+// Contexto de cuevana3c.pro a partir de un título del catálogo.
+function cuevanaCtx(item) {
+  if (!item || !item.slug) return null;
+  if (item.type === "series") {
+    return {
+      slug: item.slug,
+      tipo: "series",
+      temporada: item.temporada || 1,
+      episodio: item.episodio || 1,
+    };
+  }
+  return { slug: item.slug, tipo: "movie" };
 }
 
-// Construye URL de Cuevana 3 para películas
-function cuevanaMovieUrl(tmdb) {
-  const target = `${CUEVANA_SERVER}movie/${tmdb}`;
-  return `${CUEVANA_WRAPPER}${b64UrlSafe(target)}`;
+// Atributos data-* del botón que abre el selector de servidores.
+function cvAttrs(ctx, nombre) {
+  if (!ctx) return "";
+  return [
+    `data-cv-slug="${esc(ctx.slug)}"`,
+    `data-cv-tipo="${esc(ctx.tipo || "movie")}"`,
+    ctx.temporada != null ? `data-cv-temporada="${esc(ctx.temporada)}"` : "",
+    ctx.episodio != null ? `data-cv-episodio="${esc(ctx.episodio)}"` : "",
+    nombre ? `data-cv-nombre="${esc(nombre)}"` : "",
+  ].filter(Boolean).join(" ");
 }
 
-// Construye URL de Cuevana 3 para episodios de series
-function cuevanaEpisodeUrl(tmdb, season, episode) {
-  const target = `${CUEVANA_SERVER}tv/${tmdb}?season=${season}&episode=${episode}`;
-  return `${CUEVANA_WRAPPER}${b64UrlSafe(target)}`;
+// Selector de servidores abierto. Se guarda para poder cambiar de pestaña de
+// idioma sin volver a bajarse la página.
+let cvEstado = null;
+
+// Pinta las pestañas de idioma y los servidores del idioma activo.
+function cvPintar(wrap, grupos, nombre) {
+  const activo = cvEstado.idioma || (grupos[0] && grupos[0].idioma);
+  cvEstado.idioma = activo;
+  const grupo = grupos.find((g) => g.idioma === activo) || grupos[0];
+
+  const tabs = grupos
+    .map((g) => `<button type="button" class="cv-tab${g.idioma === activo ? " activo" : ""}" data-cv-idioma="${esc(g.idioma)}">${esc(g.idioma)}</button>`)
+    .join("");
+
+  const servidores = grupo.servidores
+    .map((s) => `<button type="button" class="cv-srv" data-cv-url="${esc(s.url)}" data-cv-nombre="${esc(nombre + " · " + s.nombre)}"><span class="cv-play">&#9654;</span>${esc(s.nombre)}</button>`)
+    .join("");
+
+  wrap.innerHTML = `
+    <div class="cv-caja">
+      <div class="cv-idiomas">${tabs}</div>
+      <div class="cv-servidores">${servidores}</div>
+    </div>`;
 }
 
-// Busca el TMDB ID de una serie por su nombre
-function findSerieTmdb(serieName) {
-  if (!serieName) return null;
-  const s = CATALOG.series?.find((x) => String(x.title || "").toLowerCase() === String(serieName).toLowerCase());
-  return s ? s.tmdb : null;
+// Baja los servidores de cuevana3c.pro y los pinta.
+async function cvAbrir(wrap, ctx, nombre) {
+  if (!wrap || !ctx || !ctx.slug) return;
+  // Si js/cuevana.js no llegó a cargarse, avisamos en vez de romper la ficha.
+  if (typeof Cuevana === "undefined" || !Cuevana.buscarServidores) {
+    wrap.classList.add("active");
+    wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudo cargar el extractor de servidores (js/cuevana.js).</p></div>`;
+    return;
+  }
+  wrap.classList.add("active");
+  wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota">Buscando servidores…</p></div>`;
+  cvEstado = { wrap, ctx, nombre: nombre || "", grupos: null, idioma: null };
+  try {
+    const grupos = await Cuevana.buscarServidores(ctx);
+    // Si el usuario se fue a otro título mientras bajaba, no pintamos encima.
+    if (!cvEstado || cvEstado.wrap !== wrap) return;
+    cvEstado.grupos = grupos;
+    cvPintar(wrap, grupos, cvEstado.nombre);
+  } catch (e) {
+    if (!cvEstado || cvEstado.wrap !== wrap) return;
+    wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudieron sacar los servidores de cuevana3c.pro: ${esc(String((e && e.message) || e))}</p></div>`;
+  }
 }
+
+// Pone un servidor concreto en el iframe.
+function cvReproducir(wrap, url, nombre) {
+  if (!wrap || !url) return;
+  wrap.classList.add("active");
+  wrap.innerHTML = `<iframe src="${esc(url)}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" title="${esc(nombre || "")}"></iframe>`;
+  if (nombre) wrap.setAttribute("data-name", nombre);
+  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// [player-sources:start]
+// Funciones puras (sin DOM); también las usa scripts/check-player-sources.mjs.
+function playerValues(ctx) {
+  const c = ctx || {};
+  const text = (v) => String(v == null ? "" : v).trim();
+  const enc = (v) => encodeURIComponent(text(v));
+  const type = text(c.type) === "series" ? "series" : "movie";
+  const query = enc([text(c.title), text(c.year)].filter(Boolean).join(" ")).replace(/%20/g, "+");
+  return {
+    type: enc(type),
+    media: enc(type === "series" ? "tv" : "movie"),
+    title: enc(c.title),
+    query,
+    year: enc(c.year),
+    tmdb: enc(c.tmdb),
+    imdb: enc(c.imdb),
+    slug: enc(c.slug),
+    season: enc(c.season),
+    episode: enc(c.episode),
+    trailerKey: enc(c.trailerKey),
+    episodeLabel: enc(c.season && c.episode ? `T${text(c.season)}E${text(c.episode)}` : ""),
+  };
+}
+
+function playerFill(template, values) {
+  if (!template) return null;
+  let missing = false;
+  const out = String(template).replace(/\{([a-zA-Z]+)\}/g, (m, key) => {
+    const val = values[key];
+    if (!val) { missing = true; return ""; }
+    return val;
+  });
+  return missing ? null : out;
+}
+
+// Resuelve data/servers.json para un título. Una fuente puede ser:
+//   kind "embed"   → URL que se incrusta tal cual en un iframe
+//   kind "cuevana" → página de cuevana3c.pro de la que hay que SACAR los
+//                    servidores (no es una URL reproducibile); se devuelve
+//                    aparte, en result.cuevana, y el cliente la pasa por
+//                    Cuevana.buscarServidores().
+//   kind "link"    → enlace externo (tráiler, fichas…)
+function resolvePlayerSources(config, ctx) {
+  const cfg = config || {};
+  const type = ctx && ctx.type === "series" ? "series" : "movie";
+  const values = playerValues(ctx);
+  const isEpisode = Boolean(values.season && values.episode);
+  const result = { embeds: [], links: [], providers: [], cuevana: null };
+  const byOrder = (a, b) => a.order - b.order;
+
+  for (const src of cfg.sources || []) {
+    if (!src || src.enabled === false) continue;
+    const applies = Array.isArray(src.appliesTo) && src.appliesTo.length ? src.appliesTo : ["movie", "series"];
+    if (!applies.includes(type)) continue;
+    const template = isEpisode && src.episodeUrl ? src.episodeUrl : src.url;
+    const url = playerFill(template, values);
+    if (!url) continue;
+    const entry = {
+      id: src.id,
+      name: src.name || src.id,
+      icon: src.icon || "",
+      url,
+      primary: Boolean(src.primary),
+      order: Number(src.order) || 100,
+    };
+    if (src.kind === "cuevana") result.cuevana = entry;
+    else (src.kind === "embed" ? result.embeds : result.links).push(entry);
+  }
+
+  for (const p of cfg.providers || []) {
+    if (!p || p.enabled === false) continue;
+    const url = playerFill(p.url, values);
+    if (url) result.providers.push({ id: p.id, name: p.name || p.id, url, order: Number(p.order) || 100 });
+  }
+
+  result.embeds.sort(byOrder);
+  result.links.sort(byOrder);
+  result.providers.sort(byOrder);
+  return result;
+}
+// [player-sources:end]
 
 const el = (html) => {
   const t = document.createElement("template");
@@ -167,11 +307,9 @@ function episodeHomeCard(ep) {
     : routeUrl("episodios/");
   const label = `T${ep.season} E${ep.episode}`;
   const poster = serie ? serie.poster : null;
-  const epSrc = serie && serie.tmdb
-    ? cuevanaEpisodeUrl(serie.tmdb, ep.season, ep.episode)
-    : ep.embedded;
+  const ctx = cuevanaCtx({ slug: serie && serie.slug, type: "series", temporada: ep.season, episodio: ep.episode });
   return `
-  <div class="episode-card" data-src="${esc(epSrc)}" data-name="${esc(ep.serie)} - ${label}">
+  <div class="episode-card" ${cvAttrs(ctx, `${ep.serie} - ${label}`)}>
     ${poster ? `<img src="${esc(poster)}" alt="" style="width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : ""}
     <div class="ep-title">${esc(ep.serie)}</div>
     <div class="ep-meta">${esc(ep.title)} &middot; <b>${label}</b></div>
@@ -346,16 +484,7 @@ function renderHome() {
 
   root.innerHTML = html;
   initSlider();
-  bindRecentEpisodes();
   adMount();
-}
-
-function bindRecentEpisodes() {
-  root.querySelectorAll(".episode-card[data-src]").forEach((card) => {
-    card.addEventListener("click", () => {
-      openPlayer(card.dataset.src, card.dataset.name);
-    });
-  });
 }
 
 // ------------- Listing (paged grid) -------------
@@ -441,7 +570,6 @@ function renderEpisodesPage(pageStr) {
     <p class="count-results">${eps.length} episodios</p>
     ${grid}
     ${pagination(eps.length, p, "/episodios")}`;
-  bindRecentEpisodes();
 }
 
 // ------------- Tag pages -------------
@@ -625,12 +753,8 @@ function renderDetail(type, slug) {
       ${item.tmdbRating ? `<div class="rating-box"><span class="rb-val">★ ${item.tmdbRating.toFixed(1)}</span><span class="rb-label">TMDb</span>${item.tmdbVotes ? `<span class="rb-votes">${esc(Number(item.tmdbVotes).toLocaleString("es"))} votos</span>` : ""}</div>` : ""}
     </div>` : "";
 
-  const embedUrl = item.type === "movie"
-    ? cuevanaMovieUrl(item.tmdb || item.embeddedId)
-    : null;
-
   const playBtn = item.type === "movie"
-    ? `<button class="play-btn" data-player="player-${item.slug}" data-src="${esc(embedUrl)}"><span class="fas fa-play"></span> Reproducir</button>`
+    ? `<button class="play-btn" ${cvAttrs(cuevanaCtx(item), item.title)} data-cv-player="player-${item.slug}"><span class="fas fa-play"></span> Reproducir</button>`
     : "";
 
   const episodeSection = item.type === "series" && item.episodes && item.episodes.length
@@ -687,10 +811,9 @@ function renderDetail(type, slug) {
   const btn = root.querySelector(".play-btn");
   if (btn) {
     btn.addEventListener("click", () => {
-      const wrap = document.getElementById(btn.dataset.player);
+      const wrap = document.getElementById(btn.dataset.cvPlayer);
       if (!wrap) return;
-      wrap.classList.add("active");
-      wrap.innerHTML = `<iframe src="${btn.dataset.src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
+      cvAbrir(wrap, cuevanaCtx(item), item.title);
     });
   }
   bindSeasonAccordion();
@@ -742,7 +865,7 @@ function renderEpisodes(show) {
         ${seasons.map((s, i) => {
           const eps = bySeason[s].map((ep) => `
             <li>
-              <a href="javascript:void(0)" data-src="${esc(cuevanaEpisodeUrl(show.tmdb, ep.season, ep.episode))}" data-name="${esc(show.title)} - T${ep.season} E${ep.episode}">
+              <a href="javascript:void(0)" ${cvAttrs(cuevanaCtx({ slug: show.slug, type: "series", temporada: ep.season, episodio: ep.episode }), `${show.title} - T${ep.season} E${ep.episode}`)}>
                 <span class="num">T${ep.season} E${ep.episode}</span>
                 <span class="episode-title">${esc(ep.title || `Episodio ${ep.episode}`)}</span>
                 ${ep.date ? `<span class="ep-date">${esc(ep.date)}</span>` : ""}
@@ -775,31 +898,41 @@ function bindSeasonAccordion() {
   });
 }
 
-function openPlayer(src, name) {
-  // Use the dedicated slot (already rendered after the detail header for series).
-  // Never jump to the top of the page.
-  let wrap = document.getElementById("show-player");
-  if (!wrap) {
-    // fallback: create the slot right after the detail header, not at page top
-    const head = root.querySelector(".detail-head");
-    wrap = document.createElement("div");
-    wrap.className = "player-wrap active";
-    wrap.id = "show-player";
-    if (head && head.parentElement) head.after(wrap);
-    else root.insertBefore(wrap, root.firstChild);
+// Delegación de clics del selector de servidores de Cuevana. Va en document
+// (no en root) porque el selector se pinta dentro de .player-wrap, que está
+// fuera del contenedor que se reemplaza en cada navegación.
+document.addEventListener("click", (e) => {
+  // pestaña de idioma
+  const tab = e.target.closest(".cv-tab[data-cv-idioma]");
+  if (tab && cvEstado && cvEstado.grupos) {
+    cvEstado.idioma = tab.dataset.cvIdioma;
+    cvPintar(cvEstado.wrap, cvEstado.grupos, cvEstado.nombre);
+    return;
   }
-  wrap.classList.add("active");
-  wrap.innerHTML = `<iframe src="${src}" allowfullscreen scrolling="no" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
-  if (name) wrap.setAttribute("data-name", name);
-  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-// delegate clicks (episodes list, recent episode cards)
-root.addEventListener("click", (e) => {
-  const epLink = e.target.closest(".episodes-list a[data-src]");
-  if (epLink) { openPlayer(epLink.dataset.src, epLink.dataset.name); return; }
-  const epCard = e.target.closest(".episode-card[data-src]");
-  if (epCard) { openPlayer(epCard.dataset.src, epCard.dataset.name); return; }
+  // servidor concreto
+  const srv = e.target.closest(".cv-srv[data-cv-url]");
+  if (srv && cvEstado) {
+    cvReproducir(cvEstado.wrap, srv.dataset.cvUrl, srv.dataset.cvNombre);
+    return;
+  }
+  // botón que abre el selector (Reproducir, episodios, tarjetas de portada)
+  const abrir = e.target.closest("[data-cv-slug]");
+  if (abrir) {
+    const wrap =
+      document.getElementById(abrir.dataset.cvPlayer) ||
+      abrir.closest(".player-wrap") ||
+      document.getElementById("show-player");
+    cvAbrir(
+      wrap,
+      {
+        slug: abrir.dataset.cvSlug,
+        tipo: abrir.dataset.cvTipo || "movie",
+        temporada: abrir.dataset.cvTemporada,
+        episodio: abrir.dataset.cvEpisodio,
+      },
+      abrir.dataset.cvNombre || ""
+    );
+  }
 });
 
 // Internal clean-route navigation. The static host only serves real files
