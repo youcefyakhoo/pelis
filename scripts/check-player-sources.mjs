@@ -56,14 +56,21 @@ const movie = resolvePlayerSources(config, {
 });
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 
-// El respaldo de ev.pelislatinohd.com SÍ se embebe: son los únicos embeds de
-// la config por defecto, y ninguno es la página de cuevana3c.pro.
+// Los reproductores de ev.pelislatinohd.com SÍ se embeben: son los únicos
+// embeds de la config por defecto, y ninguno es la página de cuevana3c.pro
+// (esa va aparte, en result.cuevana, porque hay que sacarle los servidores).
 check(
   "película: los únicos embeds son los de respaldo",
   movie.embeds.every((e) => e.id === "vidsrc-es" || e.id === "embed69"),
   movie.embeds.map((e) => e.id).join(",")
 );
-check("película: dos respaldos en película", movie.embeds.length === 2, `salieron ${movie.embeds.length}`);
+check("película: dos reproductores directos en película", movie.embeds.length === 2, `salieron ${movie.embeds.length}`);
+// El orden declara cuál va primero: ev.pelislatinohd.com delante, cuevana detrás.
+check(
+  "película: ev va primero en el orden",
+  movie.embeds[0]?.id === "vidsrc-es" && movie.embeds[1]?.id === "embed69",
+  movie.embeds.map((e) => e.id).join(",")
+);
 check("película: enlace de tráiler", byId(movie.links).trailer?.url.startsWith("https://www.youtube.com/results?search_query="));
 check(
   "película: query codificada",
@@ -88,8 +95,8 @@ const withTrailer = resolvePlayerSources(config, {
   imdb: "tt0068646",
   trailerKey: "dQw4w9WgXcQ",
 });
-// El tráiler se busca por id: los embeds de respaldo de ev.pelislatinohd.com
-// van delante y ya no es el primero de la lista.
+// El tráiler se busca por id: los reproductores de ev.pelislatinohd.com van
+// delante y ya no es el primero de la lista.
 const trailerDe = (r) => Object.fromEntries(r.embeds.map((x) => [x.id, x]))["trailer-embed"];
 check("tráiler: iframe de youtube-nocookie", trailerDe(withTrailer)?.url.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), trailerDe(withTrailer)?.url);
 check("tráiler: sin clave no se incrusta nada", !trailerDe(movie));

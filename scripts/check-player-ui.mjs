@@ -114,6 +114,9 @@ const open = async (path, opts = {}) => {
       const realFetch = globalThis.fetch;
       window.fetch = async (input, init) => {
         const abs = new URL(String(input), window.document.baseURI || window.location.href);
+        // Se cuenta la petición a cuevana3c.pro ESTÉ o no caída: así se puede
+        // afirmar que sacar los reproductores directos no ha costado ninguna.
+        if (new URL(abs).hostname === "cuevana3c.pro" && opts.contar) opts.contar.n++;
         // cuevanaCaído: la página de cuevana3c.pro falla, como cuando el sitio
         // está caído de verdad. Tiene que saltar el respaldo.
         if (opts.cuevanaCaido && new URL(abs).hostname === "cuevana3c.pro") {
@@ -137,7 +140,8 @@ const catalog = JSON.parse(await readFile(join(ROOT, "data/catalog.json"), "utf8
 // ---------- ficha de película ----------
 const movieItem = catalog.movies.find((m) => m.slug === "007-al-servicio-secreto-de-su-majestad");
 {
-  const dom = await open("/detalle/movie/007-al-servicio-secreto-de-su-majestad/");
+  const contar = { n: 0 };
+  const dom = await open("/detalle/movie/007-al-servicio-secreto-de-su-majestad/", { contar });
   await waitFor(dom, ".play-btn");
   const doc = dom.window.document;
   const btn = doc.querySelector(".play-btn");
@@ -149,36 +153,73 @@ const movieItem = catalog.movies.find((m) => m.slug === "007-al-servicio-secreto
   click(dom, btn);
   const tabs = await waitFor(dom, ".cv-tab");
   check("película: selector de servidores abierto", Boolean(tabs));
+
+  // ev.pelislatinohd.com va PRIMERO: sus embeds se pintan solos.
   const idiomas = textos(dom, ".cv-tab");
-  console.log(`  ..   idiomas: ${idiomas.join(" / ")}`);
+  console.log(`  ..   pestañas: ${idiomas.join(" / ")}`);
   check(
-    "película: idiomas en el orden pedido",
-    JSON.stringify(idiomas) === JSON.stringify(["Latino", "Castellano", "Subtitulado", "Multilenguaje [CC]"]),
+    "película: ev primero y cuevana como respaldo",
+    JSON.stringify(idiomas) === JSON.stringify(["Español", "Cuevana"]),
     JSON.stringify(idiomas)
   );
-  check("película: Latino está activo", doc.querySelector(".cv-tab.activo")?.textContent.trim() === "Latino");
-  const latino = textos(dom, ".cv-srv");
-  console.log(`  ..   servidores de Latino: ${latino.join(", ")}`);
-  check("película: servidores de Latino", latino.length === 2 && latino.every((t) => t && t !== "Reproducir"), JSON.stringify(latino));
-
-  // cambiar de pestaña tiene que volver a pintar sin recargar la página
-  const tabCast = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Castellano");
-  click(dom, tabCast);
-  await new Promise((r) => setTimeout(r, 200));
-  check("película: Castellano queda activo", doc.querySelector(".cv-tab.activo")?.textContent.trim() === "Castellano");
-  const castellano = textos(dom, ".cv-srv");
-  console.log(`  ..   servidores de Castellano: ${castellano.join(", ")}`);
-  check("película: servidores de Castellano", castellano.length === 2, JSON.stringify(castellano));
-
-  // pulsar un servidor abre el iframe con la URL del wrapper
-  const srv = doc.querySelector(".cv-srv");
-  click(dom, srv);
-  const frame = await waitFor(dom, ".player-wrap iframe");
-  check("película: iframe al pulsar un servidor", Boolean(frame));
+  check("película: Español está activo", doc.querySelector(".cv-tab.activo")?.textContent.trim() === "Español");
+  const directos = textos(dom, ".cv-srv");
+  console.log(`  ..   reproductores directos: ${directos.join(", ")}`);
   check(
-    "película: el iframe apunta al wrapper de cuevana3c.pro",
-    (frame?.getAttribute("src") || "").startsWith("https://tungtungsahur.cuevana3c.pro/?token="),
-    frame?.getAttribute("src")
+    "película: los dos embeds de ev.pelislatinohd.com",
+    directos.length === 2 && directos.some((t) => t.includes("VidSrc")) && directos.some((t) => t.includes("Embed69")),
+    JSON.stringify(directos)
+  );
+  // Lo importante: pintar esto NO ha costado ninguna petición a cuevana3c.pro.
+  check("película: sin ninguna petición a cuevana3c.pro", contar.n === 0, `${contar.n} peticiones`);
+
+  // cuevana es PEREZOSO: su pestaña no baja nada hasta que se pulsa.
+  const tabCv = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Cuevana");
+  click(dom, tabCv);
+  await new Promise((r) => setTimeout(r, 400));
+  check("película: la pestaña Cuevana no baja nada por sí sola", contar.n === 0, `${contar.n} peticiones`);
+  check(
+    "película: la pestaña Cuevana ofrece cargar",
+    Boolean(doc.querySelector(".cv-cargar[data-cv-cargar]")),
+    doc.querySelector(".cv-servidores")?.textContent?.slice(0, 120)
+  );
+
+  // al pulsar «cargar» sí baja cuevana, con sus 4 idiomas
+  click(dom, doc.querySelector(".cv-cargar[data-cv-cargar]"));
+  const tabLat = await waitFor(dom, ".cv-tab", 15000);
+  const idiomasCv = textos(dom, ".cv-tab");
+  console.log(`  ..   idiomas de cuevana: ${idiomasCv.join(" / ")}`);
+  check("película: cuevana baja sus idiomas al pedirlos", Boolean(tabLat));
+  check(
+    "película: idiomas de cuevana completos",
+    JSON.stringify(idiomasCv) === JSON.stringify(["Latino", "Castellano", "Subtitulado", "Multilenguaje [CC]"]),
+    JSON.stringify(idiomasCv)
+  );
+  check("película: cuevana sí se pidió al cargarla", contar.n > 0, `${contar.n} peticiones`);
+
+  // y un servidor de cuevana abre el iframe del wrapper
+  const srvCv = [...doc.querySelectorAll(".cv-srv")].find((n) => (n.getAttribute("data-cv-url") || "").includes("cuevana3c.pro"));
+  click(dom, srvCv);
+  const frameCv = await waitFor(dom, ".player-wrap iframe");
+  check(
+    "película: el iframe de cuevana apunta al wrapper",
+    (frameCv?.getAttribute("src") || "").startsWith("https://tungtungsahur.cuevana3c.pro/?token="),
+    frameCv?.getAttribute("src")
+  );
+
+  // Se vuelve a abrir el selector y se pulsa un reproductor directo: tiene que
+  // salir su embed, no el de cuevana.
+  click(dom, doc.querySelector(".play-btn"));
+  const tabEs2 = await waitFor(dom, ".cv-tab", 15000);
+  check("película: el selector se reabre con ev primero", tabEs2?.textContent?.trim() === "Español", tabEs2?.textContent);
+  const srvDirecto = [...doc.querySelectorAll(".cv-srv")].find((n) => (n.getAttribute("data-cv-url") || "").includes("vidsrc.sh"));
+  click(dom, srvDirecto);
+  const frameDirecto = await waitFor(dom, ".player-wrap iframe");
+  check("película: iframe al pulsar un reproductor directo", Boolean(frameDirecto));
+  check(
+    "película: el iframe apunta al embed de vidsrc",
+    (frameDirecto?.getAttribute("src") || "").startsWith("https://vidsrc.sh/embed/movie?imdb="),
+    frameDirecto?.getAttribute("src")
   );
   dom.window.close();
 }
@@ -186,7 +227,8 @@ const movieItem = catalog.movies.find((m) => m.slug === "007-al-servicio-secreto
 // ---------- serie: episodios ----------
 const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episodes || []).length > 0);
 {
-  const dom = await open(`/detalle/series/${show.slug}/`);
+  const contar = { n: 0 };
+  const dom = await open(`/detalle/series/${show.slug}/`, { contar });
   await waitFor(dom, ".seasons-block");
   const doc = dom.window.document;
   check("serie: ficha con temporadas", Boolean(doc.querySelector(".seasons-block")));
@@ -201,6 +243,28 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
   click(dom, rows[0]);
   const tabs = await waitFor(dom, ".cv-tab");
   check("serie: selector abierto desde un episodio", Boolean(tabs));
+  const idiomas = textos(dom, ".cv-tab");
+  console.log(`  ..   pestañas del episodio: ${idiomas.join(" / ")}`);
+  check(
+    "serie: ev primero y cuevana como respaldo",
+    JSON.stringify(idiomas) === JSON.stringify(["Español", "Cuevana"]),
+    JSON.stringify(idiomas)
+  );
+  // En series solo vale vidsrc (por TMDB): embed69 no funciona con series.
+  const urlsEp = [...doc.querySelectorAll(".cv-srv")].map((n) => n.getAttribute("data-cv-url") || "");
+  check("serie: un solo reproductor directo en el episodio", urlsEp.length === 1, urlsEp.join(" | "));
+  check(
+    "serie: el directo del episodio es vidsrc por TMDB",
+    urlsEp[0] === `https://vidsrc.sh/embed/tv?tmdb=${rows[0].getAttribute("data-cv-tmdb")}&season=1&episode=1&ds_lang=es`,
+    urlsEp[0]
+  );
+  check("serie: sin ninguna petición a cuevana3c.pro", contar.n === 0, `${contar.n} peticiones`);
+  // cuevana perezoso: al cargarlo da los 6 servidores repartidos en 4 idiomas.
+  const tabCv = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Cuevana");
+  click(dom, tabCv);
+  await new Promise((r) => setTimeout(r, 300));
+  click(dom, doc.querySelector(".cv-cargar[data-cv-cargar]"));
+  await waitFor(dom, ".cv-tab", 15000);
   // Se recorren todas las pestañas: cada una pinta solo sus servidores.
   // OJO: cvPintar() sustituye el HTML entero, así que los botones de las
   // pestañas se recrean en cada clic. Hay que volver a buscarlos cada vez.
@@ -215,11 +279,30 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
   }
   const total = Object.values(porIdioma).reduce((a, b) => a + b, 0);
   console.log(`  ..   servidores del episodio: ${total} (${JSON.stringify(porIdioma)})`);
-  check("serie: servidores del episodio", total === 6, String(total));
-  const srv = doc.querySelector(".cv-srv");
-  click(dom, srv);
-  const frame = await waitFor(dom, ".player-wrap iframe");
-  check("serie: iframe al pulsar un servidor", Boolean(frame));
+  check("serie: cuevana da sus 6 servidores", total === 6, String(total));
+  // Los servidores de cuevana llevan el wrapper con ?token= (los normales) o
+  // con ?v= (los de Multilenguaje). Los dos son válidos.
+  const srvCv = [...doc.querySelectorAll(".cv-srv")].find((n) => (n.getAttribute("data-cv-url") || "").includes("cuevana3c.pro"));
+  click(dom, srvCv);
+  const frameCv = await waitFor(dom, ".player-wrap iframe");
+  check(
+    "serie: iframe de cuevana al pulsar un servidor",
+    /^https:\/\/tungtungsahur\.cuevana3c\.pro\/\?(token|v)=/.test(frameCv?.getAttribute("src") || ""),
+    frameCv?.getAttribute("src")
+  );
+
+  // Y el reproductor directo del episodio, al final (sustituiría el selector).
+  click(dom, rows[0]);
+  const tabEsEp = await waitFor(dom, ".cv-tab", 15000);
+  check("serie: el selector se reabre con ev primero", tabEsEp?.textContent?.trim() === "Español", tabEsEp?.textContent);
+  const srvDirecto = [...doc.querySelectorAll(".cv-srv")].find((n) => (n.getAttribute("data-cv-url") || "").includes("vidsrc.sh"));
+  click(dom, srvDirecto);
+  const frameDirecto = await waitFor(dom, ".player-wrap iframe");
+  check(
+    "serie: iframe al pulsar el reproductor directo",
+    (frameDirecto?.getAttribute("src") || "").startsWith("https://vidsrc.sh/embed/tv?tmdb="),
+    frameDirecto?.getAttribute("src")
+  );
   dom.window.close();
 }
 
@@ -237,12 +320,14 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
   dom.window.close();
 }
 
-// ---------- respaldo cuando cuevana3c.pro está caído ----------
-// El botón tiene que llevar los ids (si no, el respaldo no puede construir
-// ninguna URL) y, al fallar cuevana, tienen que salir los embeds de
-// ev.pelislatinohd.com en vez de un mensaje de error.
+// ---------- cuevana3c.pro caído ----------
+// Los reproductores de ev.pelislatinohd.com NO dependen de cuevana para nada:
+// se construyen con los ids del catálogo, así que tienen que salir sin que se
+// haya intentado ninguna petición. Y si el usuario insiste y abre la pestaña
+// Cuevana, al fallar se vuelve a estos sin perderlos.
 {
-  const dom = await open("/detalle/movie/007-al-servicio-secreto-de-su-majestad/", { cuevanaCaido: true });
+  const contar = { n: 0 };
+  const dom = await open("/detalle/movie/007-al-servicio-secreto-de-su-majestad/", { cuevanaCaido: true, contar });
   await waitFor(dom, ".play-btn");
   const doc = dom.window.document;
   const btn = doc.querySelector(".play-btn");
@@ -271,11 +356,33 @@ const show = catalog.series.find((s) => /^[a-z0-9-]+$/.test(s.slug) && (s.episod
     urls.some((u) => u === `https://embed69.org/f/${imdb}/`),
     urls.join(" | ")
   );
-  // La pestaña «Respaldo» tiene que seguir respondiendo al clic.
-  click(dom, tab);
+  // Lo fuerte: con cuevana caído, sacar los reproductores directos no ha
+  // costado NI UNA petición. No hay nada que se pueda caer.
+  check("respaldo: ni una petición a cuevana3c.pro", contar.n === 0, `${contar.n} peticiones`);
+
+  // La pestaña Español tiene que seguir respondiendo al clic.
+  const tabEs = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Español");
+  click(dom, tabEs);
   await new Promise((r) => setTimeout(r, 200));
   check(
     "respaldo: la pestaña sigue viva tras el clic",
+    textos(dom, ".cv-srv").length === 2,
+    textos(dom, ".cv-srv").join(" | ")
+  );
+
+  // Y si el usuario abre la pestaña Cuevana estando caída, no se queda sin
+  // nada: se avisa y se vuelven a pintar los reproductores directos.
+  const tabCv = [...doc.querySelectorAll(".cv-tab")].find((t) => t.textContent.trim() === "Cuevana");
+  click(dom, tabCv);
+  await new Promise((r) => setTimeout(r, 300));
+  click(dom, doc.querySelector(".cv-cargar[data-cv-cargar]"));
+  await new Promise((r) => setTimeout(r, 2500));
+  const nota = doc.querySelector(".cv-nota")?.textContent || "";
+  console.log(`  ..   nota: ${nota.slice(0, 90)}`);
+  check("respaldo: cuevana caído se intentó al pedirlo", contar.n > 0, `${contar.n} peticiones`);
+  check("respaldo: avisa de que cuevana no ha respondido", /no ha respondido/i.test(nota), nota);
+  check(
+    "respaldo: recupera los reproductores directos",
     textos(dom, ".cv-srv").length === 2,
     textos(dom, ".cv-srv").join(" | ")
   );

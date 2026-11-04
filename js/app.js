@@ -66,9 +66,13 @@ function cvPintar(wrap, grupos, nombre) {
     .map((g) => `<button type="button" class="cv-tab${g.idioma === activo ? " activo" : ""}" data-cv-idioma="${esc(g.idioma)}">${esc(g.idioma)}</button>`)
     .join("");
 
-  const servidores = grupo.servidores
-    .map((s) => `<button type="button" class="cv-srv" data-cv-url="${esc(s.url)}" data-cv-nombre="${esc(nombre + " · " + s.nombre)}"><span class="cv-play">&#9654;</span>${esc(s.nombre)}</button>`)
-    .join("");
+  // Una pestaña perezosa (cuevana) todavía no trae servidores: se pinta con un
+  // botón que los baja al pulsarlo, para no gastar la petición si no hace falta.
+  const servidores = grupo.perezosa
+    ? `<button type="button" class="cv-srv cv-cargar" data-cv-cargar="1"><span class="cv-play">&#9654;</span>Cargar servidores de Cuevana…</button>`
+    : grupo.servidores
+        .map((s) => `<button type="button" class="cv-srv" data-cv-url="${esc(s.url)}" data-cv-nombre="${esc(nombre + " · " + s.nombre)}"><span class="cv-play">&#9654;</span>${esc(s.nombre)}</button>`)
+        .join("");
 
   wrap.innerHTML = `
     <div class="cv-caja">
@@ -77,11 +81,12 @@ function cvPintar(wrap, grupos, nombre) {
     </div>`;
 }
 
-// Respaldo de ev.pelislatinohd.com (ha vuelto a estar en línea).
+// Reproductores directos de ev.pelislatinohd.com. VAN PRIMERO.
 //
-// El reproductor público de ese sitio acaba publicando estos embeds, y los dos
-// se resuelven con el id que el catálogo YA trae, así que no hay que consultar
-// a nadie: si cuevana3c.pro está caído, estos siguen funcionando.
+// El reproductor público de ese sitio acaba publicando estos dos embeds, y los
+// dos se construyen con el id que el catálogo YA trae: no se hace NINGUNA
+// petición de red, así que no pueden fallar por culpa de un servidor caído ni
+// por rate-limiting. Son siempre la primera opción.
 //
 // Comprobado en vivo (2026-11-03) contra títulos reales:
 //   - vidsrc.sh  → 200 con página propia, en película Y en episodio.
@@ -91,7 +96,7 @@ function cvPintar(wrap, grupos, nombre) {
 //                  series devuelve {"error":"No folders found"}.
 //
 // Devuelve una lista de {nombre, url}, o vacía si no hay con qué.
-function cvRespaldo(ctx) {
+function cvDirectos(ctx) {
   if (!ctx) return [];
   const imdb = String(ctx.imdb || "").trim();
   const tmdb = String(ctx.tmdb || "").trim();
@@ -123,25 +128,38 @@ function cvRespaldo(ctx) {
   return salida;
 }
 
-// Baja los servidores de cuevana3c.pro y los pinta.
+// Abre el selector de servidores. ev.pelislatinohd.com va PRIMERO y cuevana
+// es el respaldo.
+//
+//   - Los embeds de ev.pelislatinohd.com se pintan al instante porque se
+//     construyen con los ids del catálogo: cero peticiones de red, así que no
+//     dependen de que ningún servidor esté en línea ni del rate-limiting.
+//   - cuevana3c.pro NO se baja aquí. Se añade como una pestaña perezosa: solo
+//     se pide si el usuario la abre. Así cada «Reproducir» no gasta una
+//     petición, que era justo lo que provocaba los HTTP 429.
 async function cvAbrir(wrap, ctx, nombre) {
   if (!wrap || !ctx || !ctx.slug) return;
-  // Si js/cuevana.js no llegó a cargarse, avisamos en vez de romper la ficha.
-  if (typeof Cuevana === "undefined" || !Cuevana.buscarServidores) {
-    const grupos = [{ idioma: "Respaldo", servidores: cvRespaldo(ctx) }];
-    if (grupos[0].servidores.length) {
-      wrap.classList.add("active");
-      cvEstado = { wrap, ctx, nombre: nombre || "", grupos, idioma: null };
-      cvPintar(wrap, grupos, nombre || "");
-      return;
-    }
-    wrap.classList.add("active");
-    wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudo cargar el extractor de servidores (js/cuevana.js).</p></div>`;
+  wrap.classList.add("active");
+
+  const hayCuevana = typeof Cuevana !== "undefined" && Cuevana.buscarServidores;
+
+  // 1) ev.pelislatinohd.com primero.
+  const directos = cvDirectos(ctx);
+  if (directos.length) {
+    const grupos = [{ idioma: "Español", servidores: directos }];
+    if (hayCuevana) grupos.push({ idioma: "Cuevana", servidores: null, perezosa: true });
+    cvEstado = { wrap, ctx, nombre: nombre || "", grupos, idioma: "Español", directos };
+    cvPintar(wrap, grupos, nombre || "");
     return;
   }
-  wrap.classList.add("active");
+
+  // 2) El título no trae ids utilizables: cuevana es el único camino posible.
+  if (!hayCuevana) {
+    wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">Este título no tiene identificadores para los reproductores directos, y no se pudo cargar el extractor de servidores (js/cuevana.js).</p></div>`;
+    return;
+  }
+  cvEstado = { wrap, ctx, nombre: nombre || "", grupos: null, idioma: null, directos: [] };
   wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota">Buscando servidores…</p></div>`;
-  cvEstado = { wrap, ctx, nombre: nombre || "", grupos: null, idioma: null };
   try {
     const grupos = await Cuevana.buscarServidores(ctx);
     // Si el usuario se fue a otro título mientras bajaba, no pintamos encima.
@@ -150,16 +168,57 @@ async function cvAbrir(wrap, ctx, nombre) {
     cvPintar(wrap, grupos, cvEstado.nombre);
   } catch (e) {
     if (!cvEstado || cvEstado.wrap !== wrap) return;
-    // cuevana3c.pro no ha respondido. Antes de rendirse se ofrece el respaldo
-    // de ev.pelislatinohd.com, que va por otro lado y cubre más títulos.
-    const grupos = [{ idioma: "Respaldo", servidores: cvRespaldo(ctx) }];
-    if (grupos[0].servidores.length) {
-      cvEstado.grupos = grupos;
-      cvPintar(wrap, grupos, cvEstado.nombre);
-      return;
-    }
     wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudieron sacar los servidores de cuevana3c.pro: ${esc(String((e && e.message) || e))}</p></div>`;
   }
+}
+
+// Baja los servidores de cuevana3c.pro, pero solo cuando el usuario abre su
+// pestaña. Los embeds de ev.pelislatinohd.com ya están pintados y siguen
+// disponibles si cuevana falla.
+let cvCargando = false;
+async function cvCargarCuevana() {
+  const est = cvEstado;
+  if (!est || !est.ctx || cvCargando) return;
+  if (typeof Cuevana === "undefined" || !Cuevana.buscarServidores) {
+    cvNota("No se pudo cargar el extractor de servidores (js/cuevana.js).");
+    return;
+  }
+  cvCargando = true;
+  const wrap = est.wrap;
+  wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota">Buscando servidores…</p></div>`;
+  try {
+    const grupos = await Cuevana.buscarServidores(est.ctx);
+    if (!cvEstado || cvEstado.wrap !== wrap) return;
+    cvEstado.grupos = grupos;
+    cvEstado.idioma = null;
+    cvPintar(wrap, grupos, cvEstado.nombre);
+  } catch (e) {
+    if (!cvEstado || cvEstado.wrap !== wrap) return;
+    // cuevana no responde: se vuelve a los embeds directos, que es lo único
+    // que tenemos garantizado.
+    if (est.directos && est.directos.length) {
+      const grupos = [{ idioma: "Español", servidores: est.directos }];
+      cvEstado.grupos = grupos;
+      cvEstado.idioma = "Español";
+      cvPintar(wrap, grupos, cvEstado.nombre);
+      cvNota("cuevana3c.pro no ha respondido. Se dejan los reproductores directos de ev.pelislatinohd.com.");
+    } else {
+      wrap.innerHTML = `<div class="cv-caja"><p class="cv-nota cv-error">No se pudieron sacar los servidores de cuevana3c.pro: ${esc(String((e && e.message) || e))}</p></div>`;
+    }
+  } finally {
+    cvCargando = false;
+  }
+}
+
+// Nota bajo el selector, sin destruirlo.
+function cvNota(texto) {
+  const est = cvEstado;
+  if (!est || !est.wrap) return;
+  const caja = est.wrap.querySelector(".cv-caja");
+  if (!caja) return;
+  const vieja = caja.querySelector(".cv-nota");
+  if (vieja) vieja.remove();
+  caja.insertAdjacentHTML("afterbegin", `<p class="cv-nota">${esc(texto)}</p>`);
 }
 
 // Pone un servidor concreto en el iframe.
@@ -990,6 +1049,12 @@ document.addEventListener("click", (e) => {
   if (tab && cvEstado && cvEstado.grupos) {
     cvEstado.idioma = tab.dataset.cvIdioma;
     cvPintar(cvEstado.wrap, cvEstado.grupos, cvEstado.nombre);
+    return;
+  }
+  // pestaña perezosa de cuevana: se baja solo cuando el usuario la pide
+  const cargar = e.target.closest(".cv-cargar[data-cv-cargar]");
+  if (cargar && cvEstado) {
+    cvCargarCuevana();
     return;
   }
   // servidor concreto
