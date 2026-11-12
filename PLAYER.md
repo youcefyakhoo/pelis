@@ -8,11 +8,6 @@ Regla del proyecto: aquí solo se configuran **servicios oficiales** (tráiler,
 fichas, plataformas de streaming) o **embeds de contenido propio o licenciado**.
 El sitio no aloja ni transmite vídeo.
 
-**Excepción, añadida por petición del dueño del repo:** la fuente `cuevana3`
-apunta a `cuevana3c.pro`, de donde el navegador **saca** la lista de servidores
-en el momento de abrir el título. Es la única fuente de ese tipo
-(`kind: "cuevana"`).
-
 ## Cómo funciona
 
 ```
@@ -34,39 +29,30 @@ panel del reproductor (tráiler, dónde verlo, plataformas, embed licenciado)
 - Si `data/servers.json` no se puede cargar, el cliente usa un modo de
   emergencia con solo la búsqueda de tráiler.
 
-## Servidores de Cuevana (`js/cuevana.js`)
+## Reproductores de ev.pelislatinohd.com
 
-La fuente `cuevana3` no guarda una URL de vídeo: guarda la **página** de
-cuevana3c.pro de la que hay que extraerlos. Al pulsar **Reproducir** el
-navegador baja esa página y la interpreta.
+Las fuentes `vidsrc-es` y `embed69` apuntan al reproductor público de
+ev.pelislatinohd.com. Se construyen con los ids que el catálogo **ya** trae, así
+que el selector se pinta **sin hacer ninguna petición de red**: no depende de que
+ningún servidor esté en línea ni del rate-limiting.
 
 ```
-cuevana3c.pro/pelicula/{slug}               →  4 pestañas de idioma
-cuevana3c.pro/serie/{slug}/episodio-{t}x{e}
+data/catalog.json  →  ids (imdb para películas, tmdb para series)
         │
-        ▼  js/cuevana.js  (Cuevana.extraerServidores)
-[{idioma, servidores:[{nombre, url}]}]   ordenado:
-        │                                Latino → Castellano → Subtitulado → resto
-        ▼  js/app.js  (cvAbrir / cvPintar)
-pestañas de idioma + botones de servidor
+        ▼  js/app.js  (cvDirectos → cvAbrir → cvPintar)
+[{idioma: "Español", servidores:[{nombre, url}]}]
         │
         ▼  clic en un servidor
-<iframe src="https://tungtungsahur.cuevana3c.pro/?token=…">
+<iframe src="https://vidsrc.sh/embed/movie?imdb=…&ds_lang=es">
 ```
 
-Detalles que importan:
+Comprobado en vivo (2026-11-03) contra títulos reales:
 
-- **El `slug` del catálogo es el mismo que usa cuevana3c.pro**, así que no hace
-  falta TMDB ni IMDb para encontrarlo.
-- cuevana3c.pro **manda cabeceras CORS**, por eso se puede bajar desde el
-  navegador. El wrapper `tungtungsahur` **no** las manda, pero ese solo se usa
-  como `src` del `<iframe>`, que no las necesita.
-- El orden de idioma es fijo: **Latino → Castellano → Subtitulado → resto**.
-- Si la página no se puede leer, se muestra un aviso en el hueco del
-  reproductor y no se rompe la ficha.
+- `vidsrc-es` → 200 con página propia, en película **y** en episodio.
+- `embed69` → 200 con el título correcto, **pero solo en película**: con series
+  devuelve `{"error":"No folders found"}`.
 
-La clave XOR y los hosts del wrapper están en `js/cuevana.js` (`CLAVE`, `HOST`).
-Si el sitio los cambia, hay que actualizarlos ahí.
+Por eso `embed69` lleva `"appliesTo": ["movie"]`.
 
 ## Esquema
 
@@ -78,8 +64,6 @@ Si el sitio los cambia, hay que actualizarlos ahí.
       "id": "trailer",                  // identificador único
       "name": "Tráiler oficial",        // texto del botón
       "kind": "link",                   // "link" (pestaña nueva) | "embed" (iframe)
-                                      // | "cuevana" (página de la que extraer
-                                      //   los servidores; ver js/cuevana.js)
       "icon": "▶",                      // opcional
       "primary": true,                  // botón destacado
       "order": 10,                      // menor = antes
@@ -189,9 +173,8 @@ en `js/`, `scraper/` ni `data/`.
 npm run check      # player + rutas + UI + páginas (necesita npm install)
 ```
 
-`check-player-ui.mjs` abre la ficha en jsdom, pulsa **Reproducir** y comprueba
-que salgan las pestañas de idioma y los servidores. La página de cuevana3c.pro
-se sirve desde `tests/fixtures/`, así que el test no depende de la red.
+`check-player-sources.mjs` comprueba el motor del reproductor y la
+configuración sin navegador.
 
 ## Notas
 

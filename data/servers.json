@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated": "2026-11-03",
-  "notice": "Hay DOS caminos para ver un título, por si uno se cae. El PRIMERO es ev.pelislatinohd.com, que ha vuelto a estar en línea: su reproductor pública embeds que se construyen con el id que el catálogo ya trae (IMDb en películas, TMDB en series), así que no hacen NINGUNA petición de red y no dependen de que cuevana3c.pro esté de buenas. El RESPALDO es cuevana3c.pro, que se baja solo si el usuario abre su pestaña: es la vía verificada de principio a fin (master HLS real y pista de audio en español), y además es la única que da a elegir idioma (Latino / Castellano / Subtitulado / Multilenguaje).",
+  "notice": "Fuentes del reproductor: los reproductores de ev.pelislatinohd.com, que se resuelven con los ids que el catálogo ya trae. Este sitio no aloja ni transmite vídeo.",
   "sources": [
     {
       "id": "vidsrc-es",
@@ -15,7 +15,7 @@
       ],
       "url": "https://vidsrc.sh/embed/movie?imdb={imdb}&ds_lang=es",
       "episodeUrl": "https://vidsrc.sh/embed/tv?tmdb={tmdb}&season={season}&episode={episode}&ds_lang=es",
-      "note": "RESPALDO de ev.pelislatinohd.com (otra vez en línea). El reproductor público de ese sitio acaba publicando este embed; se resuelve con el id que ya trae el catálogo, sin consultar a nadie. Películas por IMDb (externalId) y episodios por TMDB: en el catálogo las películas llevan IMDb y las series TMDB. Cubre los 7.207 títulos, también los que no están en cuevana3c.pro."
+      "note": "RESPALDO de ev.pelislatinohd.com (otra vez en línea). El reproductor público de ese sitio acaba publicando este embed; se resuelve con el id que ya trae el catálogo, sin consultar a nadie. Películas por IMDb (externalId) y episodios por TMDB: en el catálogo las películas llevan IMDb y las series TMDB. Cubre los 7.207 títulos del catálogo."
     },
     {
       "id": "embed69",
@@ -28,20 +28,6 @@
       ],
       "url": "https://embed69.org/f/{imdb}/",
       "note": "Segundo respaldo de ev.pelislatinohd.com, también por id de IMDb. Solo películas: con series devuelve un error de \"no encontrado\"."
-    },
-    {
-      "id": "cuevana3",
-      "name": "Cuevana 3",
-      "kind": "cuevana",
-      "enabled": true,
-      "order": 4,
-      "appliesTo": [
-        "movie",
-        "series"
-      ],
-      "url": "https://cuevana3c.pro/pelicula/{slug}",
-      "episodeUrl": "https://cuevana3c.pro/serie/{slug}/episodio-{season}x{episode}",
-      "note": "No es una URL reproducibile: es la página de cuevana3c.pro de la que el cliente saca los servidores con Cuevana.buscarServidores(). El slug del catálogo coincide con el de la web, así que no hace falta TMDB ni IMDb."
     },
     {
       "id": "trailer-embed",

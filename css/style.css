@@ -979,7 +979,7 @@ footer.main {
 @media (max-width: 820px) {
   .items .item.ad-box { display: none !important; }
 }
-/* ---------- Selector de servidores de Cuevana (por idioma) ---------- */
+/* ---------- Selector de servidores (por idioma) ---------- */
 /* Se pinta dentro de .player-wrap, que es negro y con aspect-ratio 16/9. */
 .cv-caja {
   padding: 18px;
